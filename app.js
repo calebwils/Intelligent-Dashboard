@@ -108,7 +108,9 @@ const state = {
   ai: {
     isOpen: false,
     isThinking: false,
-    model: localStorage.getItem('aiforce_ai_model') || 'qwen-plus',
+    model: (localStorage.getItem('aiforce_ai_model') && localStorage.getItem('aiforce_ai_model') !== 'qwen-plus')
+      ? localStorage.getItem('aiforce_ai_model')
+      : 'qwen-flash',
     baseUrl: localStorage.getItem('aiforce_ai_base_url') || 'https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
     apiKey: localStorage.getItem('aiforce_ai_key') || '',
     hasServerKey: false,
@@ -3596,8 +3598,11 @@ async function checkAiServerStatus() {
       if (data.baseUrl && !localStorage.getItem('aiforce_ai_base_url')) {
         state.ai.baseUrl = data.baseUrl;
       }
-      if (data.model && !localStorage.getItem('aiforce_ai_model')) {
-        state.ai.model = data.model;
+      if (data.model) {
+        if (!localStorage.getItem('aiforce_ai_model') || localStorage.getItem('aiforce_ai_model') === 'qwen-plus') {
+          state.ai.model = data.model;
+          localStorage.setItem('aiforce_ai_model', data.model);
+        }
       }
       updateAiStatusBadges();
     }
@@ -3989,7 +3994,7 @@ Ne déroge jamais à cette consigne, sous aucun prétexte.
 1. Exactitude Mathématique : Effectue les calculs avec rigueur (sommes, moyennes, pourcentages, écarts budgétaires, délais). Base-toi strictement sur les données ci-dessous.
 2. Traçabilité Complète : Mentionne toujours les références exactes (ex: N° de Facture FAC-2026-..., N° de BC PO-2026-..., Fournisseur, Centre de coût).
 3. Structuration Exécutive : Utilise le format Markdown avec des puces soignées, des montants en gras avec séparateur de milliers et devise FCFA, et des tableaux Markdown complets lorsque pertinent.
-4. Langue : Français soigné, direct et professionnel.
+4. Langue : Réponds directement dans la langue employée par l'utilisateur (français ou anglais selon la question posée), avec un style exécutif, direct, précis et professionnel.
 
 === DONNÉES EN TEMPS RÉEL DU SYSTÈME D'INFORMATION ===
 ${enterpriseContext}`;
@@ -4022,7 +4027,7 @@ ${enterpriseContext}`;
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
-        model: state.ai.model || 'qwen-plus',
+        model: state.ai.model || 'qwen-flash',
         messages: apiMessages,
         temperature: 0.2
       })
@@ -4075,7 +4080,7 @@ function openAiSettingsModal() {
 
   if (inputKey) inputKey.value = state.ai.apiKey || '';
   if (inputUrl) inputUrl.value = state.ai.baseUrl || 'https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
-  if (selectModel) selectModel.value = state.ai.model || 'qwen-plus';
+  if (selectModel) selectModel.value = state.ai.model || 'qwen-flash';
 
   checkAiServerStatus();
 

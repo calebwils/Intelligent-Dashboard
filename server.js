@@ -11,6 +11,19 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { Agent, setGlobalDispatcher } = require('undici');
+
+// Configuration du répartiteur réseau avec timeouts étendus pour liaisons intercontinentales (Alibaba Cloud Singapore)
+const globalAgent = new Agent({
+  connect: {
+    timeout: 35000 // 35s connect timeout au lieu de 10s par défaut
+  },
+  headersTimeout: 60000,
+  bodyTimeout: 60000,
+  keepAliveTimeout: 30000,
+  keepAliveMaxTimeout: 60000
+});
+setGlobalDispatcher(globalAgent);
 
 // 1. Chargement sécurisé des variables du fichier .env
 function loadEnv() {
@@ -41,7 +54,41 @@ loadEnv();
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const DEFAULT_QWEN_BASE = 'https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_MODEL = 'qwen-plus';
+const DEFAULT_MODEL = 'qwen-flash';
+
+/**
+ * Fonction résiliente d'appel à l'API Qwen avec retentatives automatiques en cas de saut réseau
+ */
+async function callQwenApi(endpoint, apiKey, payload, maxRetries = 2) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { message: text };
+      }
+      return { ok: resp.ok, status: resp.status, data, text, error: null };
+    } catch (err) {
+      lastErr = err;
+      console.warn(`⚠️ Tentative ${attempt}/${maxRetries + 1} de connexion à Qwen échouée : ${err.message}`);
+      if (attempt <= maxRetries) {
+        await new Promise(r => setTimeout(r, 600 * attempt));
+      }
+    }
+  }
+  return { ok: false, status: 504, data: null, text: '', error: lastErr };
+}
 
 // Types MIME pour les fichiers statiques
 const MIME_TYPES = {
@@ -114,36 +161,51 @@ const server = http.createServer(async (req, res) => {
 
         const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
-        console.log(`🤖 [AI Data Analyst] Appel Qwen -> Modèle: ${model}, Messages: ${payload.messages?.length || 0}`);
+        let activeModel = model;
+        console.log(`🤖 [AI Data Analyst] Appel Qwen -> Modèle: ${activeModel}, Messages: ${payload.messages?.length || 0}`);
 
-        const qwenResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: payload.messages || [],
-            temperature: payload.temperature !== undefined ? payload.temperature : 0.3,
-            max_tokens: payload.max_tokens || 2048
-          })
+        let callResult = await callQwenApi(endpoint, apiKey, {
+          model: activeModel,
+          messages: payload.messages || [],
+          temperature: payload.temperature !== undefined ? payload.temperature : 0.2,
+          max_tokens: payload.max_tokens || 2048
         });
 
-        const qwenData = await qwenResponse.json();
+        // Si le modèle demandé a son quota gratuit épuisé, repli automatique immédiat sur qwen-flash
+        if (!callResult.ok && activeModel !== 'qwen-flash' && (callResult.status === 403 || (callResult.text && callResult.text.toLowerCase().includes('quota')))) {
+          console.log(`⚠️ Quota épuisé pour le modèle ${activeModel}. Basculement automatique immédiat sur qwen-flash...`);
+          activeModel = 'qwen-flash';
+          callResult = await callQwenApi(endpoint, apiKey, {
+            model: activeModel,
+            messages: payload.messages || [],
+            temperature: payload.temperature !== undefined ? payload.temperature : 0.2,
+            max_tokens: payload.max_tokens || 2048
+          });
+        }
 
-        if (!qwenResponse.ok) {
-          console.error('❌ Erreur API Qwen:', qwenData);
-          res.writeHead(qwenResponse.status, { 'Content-Type': 'application/json; charset=utf-8' });
+        if (callResult.error) {
+          console.error('❌ Erreur réseau persistante avec Qwen:', callResult.error);
+          res.writeHead(504, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            error: 'NETWORK_TIMEOUT',
+            message: `Délai de connexion dépassé avec l'API Qwen (${callResult.error.message}). Veuillez réessayer dans un instant.`
+          }));
+          return;
+        }
+
+        if (!callResult.ok) {
+          console.error('❌ Erreur API Qwen:', callResult.data);
+          res.writeHead(callResult.status, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({
             error: 'QWEN_API_ERROR',
-            details: qwenData
+            message: callResult.data?.error?.message || callResult.data?.message || 'Erreur API Qwen',
+            details: callResult.data
           }));
           return;
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(qwenData));
+        res.end(JSON.stringify(callResult.data));
       } catch (err) {
         console.error('❌ Erreur interne proxy chat:', err);
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });

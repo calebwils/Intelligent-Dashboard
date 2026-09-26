@@ -339,12 +339,6 @@
             <button class="curr-btn" data-curr="EUR" onclick="setCurrency('EUR')">EUR €</button>
             <button class="curr-btn" data-curr="USD" onclick="setCurrency('USD')">USD $</button>
           </div>
-
-          <!-- AI Data Analyst Header Button -->
-          <button class="btn-ai-header" id="headerAiBtn" onclick="toggleAiChatbot()" title="Consulter l'AI Data Analyst (Intelligence Artificielle Qwen)">
-            <img src="assets/ai-logo.png" alt="Logo IA" class="ai-header-logo-img">
-            <span>AI Analyst</span>
-          </button>
         </div>
 
       </div>
@@ -1800,7 +1794,7 @@
         <div class="ai-header-titles">
           <div class="ai-header-row">
             <h3 class="ai-title" id="aiChatbotTitle">AI Data Analyst</h3>
-            <span class="ai-model-tag" id="aiModelTag">Qwen Plus</span>
+            <span class="ai-model-tag" id="aiModelTag">Qwen Flash</span>
           </div>
           <span class="ai-subtitle">Intelligence Approvisionnements & DAF</span>
         </div>
@@ -1925,9 +1919,10 @@
         <div class="filter-item" style="margin-top: 0.65rem;">
           <label class="filter-label" for="aiSettingsModel">Modèle Qwen</label>
           <select id="aiSettingsModel" class="custom-select-btn" style="width: 100%; cursor: pointer;">
-            <option value="qwen-plus" selected>Qwen Plus (Recommandé — Équilibré & Raisonnement)</option>
-            <option value="qwen-turbo">Qwen Turbo (Ultra Rapide)</option>
-            <option value="qwen-max">Qwen Max (Précision Maximale)</option>
+            <option value="qwen-flash" selected>Qwen Flash (Ultra Rapide & Recommandé)</option>
+            <option value="qwen3-8b">Qwen3 8B (Raisonnement Avancé)</option>
+            <option value="qwen-plus">Qwen Plus (Standard)</option>
+            <option value="qwen-turbo">Qwen Turbo</option>
           </select>
         </div>
 
