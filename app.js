@@ -3885,12 +3885,11 @@ function clearAiChat() {
     container.innerHTML = `
       <div class="ai-message ai-message-assistant">
         <div class="ai-message-avatar">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path></svg>
+          <img src="assets/ai-logo.png" alt="Logo IA" class="ai-msg-avatar-img">
         </div>
         <div class="ai-message-content">
-          <p>Bonjour, je suis votre <strong>AI Data Analyst</strong>, dédié exclusivement à l'analyse experte des approvisionnements, des bons de commande, de la comptabilité fournisseurs et des audits financiers de l'entreprise.</p>
-          <p>J'ai accès en temps réel à l'ensemble de vos données (88 factures, 25 bons de commande, 29 fournisseurs, 8 départements et les indicateurs SLA/audit).</p>
-          <p>Comment puis-je vous éclairer aujourd'hui sur vos finances et approvisionnements ?</p>
+          <p>Bonjour ! Je suis votre <strong>AI Data Analyst</strong>.</p>
+          <p>Comment puis-je vous aider aujourd'hui dans l'analyse de vos approvisionnements et finances ?</p>
         </div>
       </div>
     `;
@@ -3926,7 +3925,7 @@ function appendAiMessage(role, rawContent) {
   const avatar = document.createElement('div');
   avatar.className = 'ai-message-avatar';
   if (role === 'assistant') {
-    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path></svg>`;
+    avatar.innerHTML = `<img src="assets/ai-logo.png" alt="Logo IA" class="ai-msg-avatar-img">`;
   } else {
     avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
   }
@@ -3965,6 +3964,11 @@ async function handleAiChatSubmit(e) {
   const indicator = document.getElementById('aiTypingIndicator');
   if (sendBtn) sendBtn.disabled = true;
   if (indicator) indicator.style.display = 'flex';
+
+  // Activation des animations de rotation et pulsation sur les logos IA
+  document.getElementById('aiChatbotWindow')?.classList.add('is-thinking');
+  document.getElementById('headerAiBtn')?.classList.add('is-thinking');
+  document.getElementById('aiChatbotTrigger')?.classList.add('is-thinking');
 
   const container = document.getElementById('aiChatMessages');
   if (container) container.scrollTop = container.scrollHeight;
@@ -4052,6 +4056,11 @@ ${enterpriseContext}`;
     state.ai.isThinking = false;
     if (sendBtn) sendBtn.disabled = false;
     if (indicator) indicator.style.display = 'none';
+
+    // Désactivation des animations de rotation
+    document.getElementById('aiChatbotWindow')?.classList.remove('is-thinking');
+    document.getElementById('headerAiBtn')?.classList.remove('is-thinking');
+    document.getElementById('aiChatbotTrigger')?.classList.remove('is-thinking');
   }
 }
 
