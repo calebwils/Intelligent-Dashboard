@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIFORCE AGENCY — Plateforme Exécutive des Approvisionnements & Comptabilité Fournisseurs 2.0</title>
+  <meta name="description" content="Tableau de bord d'intelligence financière, de gestion des bons de commande, de suivi des délais de paiement et de synchronisation Google Sheets en temps réel développé par AIFORCE AGENCY.">
+
+  <!-- Executive Typography: Outfit, Plus Jakarta Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js 4.4.2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- Application Stylesheet with cache-busting -->
+  <link rel="stylesheet" href="styles.css?v=2.4.0">
+
+  <!-- Critical Inlined Filter & KPI Grid Styles (guaranteed immediate styling) -->
+  <style>
+    .global-filter-card {
+      background: var(--bg-surface, #0d1527);
+      border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.18));
+      border-radius: var(--radius-md, 12px);
+      padding: 1.15rem 1.4rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      margin-bottom: 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+    }
+    .global-filter-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.1));
+    }
+    .filter-header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-heading, 'Outfit', sans-serif);
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: var(--accent-cyan, #06b6d4);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .filter-header-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary, #94a3b8);
+    }
+    .global-filter-controls {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.85rem;
+      align-items: flex-end;
+    }
+    .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      position: relative;
+    }
+    .filter-label {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary, #94a3b8);
+    }
+    .custom-select-box {
+      position: relative;
+      width: 100%;
+    }
+    .custom-select-btn {
+      width: 100%;
+      height: 38px;
+      padding: 0.45rem 0.85rem;
+      background: var(--bg-surface-elevated, #131f37);
+      border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.18));
+      border-radius: var(--radius-sm, 8px);
+      color: var(--text-primary, #f8fafc);
+      font-family: var(--font-body, 'Plus Jakarta Sans', sans-serif);
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.15s ease;
+      text-align: left;
+      box-sizing: border-box;
+    }
+    .custom-select-btn:hover,
+    .custom-select-box.is-open .custom-select-btn {
+      border-color: var(--accent-blue, #0284c7);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+      background: var(--bg-surface-hover, #1a2a4a);
+    }
+    .custom-select-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .custom-select-chevron {
+      flex-shrink: 0;
+      color: var(--text-tertiary, #64748b);
+      transition: transform 0.2s ease;
+    }
+    .custom-select-box.is-open .custom-select-chevron {
+      transform: rotate(180deg);
+      color: var(--accent-cyan, #06b6d4);
+    }
+    .custom-select-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #0B132B;
+      border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.25));
+      border-radius: var(--radius-sm, 8px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(2, 132, 199, 0.25);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      padding: 0.35rem 0;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .custom-select-box.is-open .custom-select-menu {
+      display: block;
+      animation: dropDownFade 0.18s ease-out;
+    }
+    @keyframes dropDownFade {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-select-option {
+      padding: 0.52rem 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-primary, #f8fafc);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .custom-select-option:hover {
+      background: rgba(2, 132, 199, 0.18);
+      color: #FFFFFF;
+    }
+    .custom-select-option.is-selected {
+      background: rgba(2, 132, 199, 0.28);
+      color: var(--accent-cyan, #06b6d4);
+      font-weight: 700;
+    }
+    .custom-select-option .opt-check {
+      color: var(--accent-emerald, #10b981);
+      font-weight: 800;
+      font-size: 0.85rem;
+      margin-left: 0.5rem;
+    }
+    /* 6 KPI Cards on 1 Single Row */
+    .kpi-grid {
+      display: grid !important;
+      grid-template-columns: repeat(6, 1fr) !important;
+      gap: 0.75rem !important;
+    }
+    .kpi-card {
+      padding: 0.95rem 0.85rem !important;
+      gap: 0.65rem !important;
+      min-width: 0 !important;
+    }
+    .kpi-title {
+      font-size: 0.82rem !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .kpi-category {
+      font-size: 0.64rem !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .kpi-icon-badge {
+      width: 32px !important;
+      height: 32px !important;
+    }
+    .kpi-icon-badge svg {
+      width: 16px !important;
+      height: 16px !important;
+    }
+    .kpi-val {
+      font-size: clamp(1.05rem, 1.25vw, 1.45rem) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    .kpi-currency {
+      font-size: 0.72rem !important;
+      margin-left: 0.25rem !important;
+    }
+    .kpi-footer {
+      font-size: 0.68rem !important;
+      gap: 0.35rem !important;
+      padding-top: 0.5rem !important;
+      white-space: nowrap !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       COMMAND HEADER & NAVIGATION BAR
+       ========================================================================== -->
+  <header class="app-header">
+    <div class="header-inner">
+      
+      <!-- Top Row: Brand on Left, Status Pill & Theme Toggle in TOP RIGHT CORNER -->
+      <div class="header-top-row">
+        
+        <!-- Brand & Entity Identification -->
+        <div class="brand-group" onclick="switchTab('overview')">
+          <div class="brand-logo-wrap" title="AIFORCE AGENCY — AI Automation & Financial Consulting">
+            <img id="appLogo" src="assets/aiforce-logo-dark-mode.png" alt="AIFORCE AGENCY Logo" class="brand-logo-img">
+          </div>
+          <div class="brand-info">
+            <div class="brand-tag-line">
+              <span class="brand-title">AIFORCE AGENCY</span>
+              <span class="brand-badge">V2.0 PRO</span>
+            </div>
+            <span class="brand-sub">Approvisionnements & Comptabilité Fournisseurs • BIS & Partenaires</span>
+          </div>
+        </div>
+
+        <!-- Angle Droit Totalement en Haut (Top-Right Corner) -->
+        <div class="header-top-right">
+          <!-- Live Google Sheet Status Pill -->
+          <div class="sync-pill" onclick="openDiagnosticModal()" title="Synchronisation temps réel avec Google Sheets. Cliquez pour voir les diagnostics.">
+            <div class="beacon-dot" id="headerSyncDot"></div>
+            <span id="headerSyncText">Google Sheets En Direct</span>
+            <span style="opacity: 0.6; font-size: 0.72rem; font-family: var(--font-mono);" id="headerSyncCountdown">30s</span>
+          </div>
+
+          <!-- Dark/Light Theme Toggle -->
+          <button class="btn-icon-tool" id="themeToggleBtn" onclick="toggleTheme()" title="Basculer Mode Clair / Sombre">
+            <svg id="themeIconSun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg id="themeIconMoon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </button>
+
+          <!-- Plein Écran / Full View Toggle -->
+          <button class="btn-icon-tool" id="fullscreenToggleBtn" onclick="toggleFullscreen()" title="Activer le Plein Écran (Full View)" aria-label="Activer le Plein Écran">
+            <svg id="fullscreenIconExpand" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            <svg id="fullscreenIconCompress" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Navigation & Action Tools Row -->
+      <div class="header-nav-row">
+        
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs" aria-label="Modules du tableau de bord">
+          <button class="nav-tab-btn active" data-tab="overview" onclick="switchTab('overview')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Vue Synthétique</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="invoices" onclick="switchTab('invoices')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            <span>Grand Livre Factures</span>
+            <span class="nav-tab-badge" id="navInvoicesBadge">88</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="pos" onclick="switchTab('pos')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span>Bons de Commande</span>
+            <span class="nav-tab-badge" id="navPosBadge">25</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="vendors" onclick="switchTab('vendors')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Fournisseurs</span>
+            <span class="nav-tab-badge" id="navVendorsBadge">29</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="departments" onclick="switchTab('departments')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+            <span>Départements & Coûts</span>
+            <span class="nav-tab-badge" id="navDeptsBadge">8</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="sheets" onclick="switchTab('sheets')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+            <span>Matrice Intégrale (54 Col.)</span>
+            <span class="nav-tab-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border-color: rgba(16, 185, 129, 0.3);">54 Col.</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="sla" onclick="switchTab('sla')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span>Délais & SLA</span>
+          </button>
+          <button class="nav-tab-btn" data-tab="audit" onclick="switchTab('audit')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <span>Radar d'Audit</span>
+            <span class="nav-tab-badge badge-danger" id="navAuditBadge">5</span>
+          </button>
+        </nav>
+
+        <!-- Action Tools: Google Sheets + Refresh Icon + Currency Picker -->
+        <div class="header-action-tools">
+          <!-- Direct Link to Excel / Google Sheets -->
+          <a href="https://docs.google.com/spreadsheets/d/10Zhtwgra9yr67Qt-LnflXNCMubBd8HWMSQ1YwcgJmog/edit?usp=sharing" target="_blank" rel="noopener noreferrer" class="btn-gsheet-direct" title="Accéder directement au fichier Excel">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <span>Excel</span>
+          </a>
+
+          <!-- Icone Actualisation seule (sans texte) -->
+          <button class="btn-icon-tool" id="btnForceSync" onclick="triggerManualSync()" title="Actualiser immédiatement les données Google Sheets">
+            <svg id="syncIconSpin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+
+          <!-- Currency Picker -->
+          <div class="currency-picker" title="Convertir les devises en direct">
+            <button class="curr-btn active" data-curr="XOF" onclick="setCurrency('XOF')">FCFA</button>
+            <button class="curr-btn" data-curr="EUR" onclick="setCurrency('EUR')">EUR €</button>
+            <button class="curr-btn" data-curr="USD" onclick="setCurrency('USD')">USD $</button>
+          </div>
+
+          <!-- AI Data Analyst Header Button -->
+          <button class="btn-ai-header" id="headerAiBtn" onclick="toggleAiChatbot()" title="Consulter l'AI Data Analyst (Intelligence Artificielle Qwen)">
+            <span class="ai-sparkle-dot"></span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path>
+            </svg>
+            <span>AI Analyst</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================== -->
+  <main class="app-main">
+
+    <!-- ========================================================================
+         BARRE DE FILTRAGE UNIVERSELLE (DÉPARTEMENT, CENTRE DE COÛT, DEMANDEUR...)
+         ======================================================================== -->
+    <div class="global-filter-card" id="globalFilterCard">
+      <div class="global-filter-header">
+        <div class="filter-header-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+          <span>Filtres Analytiques Généraux du Tableau de Bord</span>
+        </div>
+        <div class="filter-header-desc">
+          Filtrer instantanément l'ensemble du tableau de bord (KPIs, graphiques, Grand Livre, BCs) par département, centre de coût ou prescripteur
+        </div>
+      </div>
+
+      <div class="global-filter-controls">
+        <!-- 1. Département -->
+        <div class="filter-item">
+          <label class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+            <span>Département</span>
+          </label>
+          <div class="custom-select-box" id="csBoxDept">
+            <button type="button" class="custom-select-btn" id="csBtnDept" onclick="toggleCustomSelect('dept', event)">
+              <span class="custom-select-label" id="csLabelDept">Tous départements (8)</span>
+              <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="custom-select-menu" id="csMenuDept">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          <select id="globalFilterDept" style="display: none;" onchange="handleGlobalFilterChange('dept', this.value)">
+            <option value="ALL">Tous départements (8)</option>
+          </select>
+        </div>
+
+        <!-- 2. Centre de Coût -->
+        <div class="filter-item">
+          <label class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Centre de Coût</span>
+          </label>
+          <div class="custom-select-box" id="csBoxCostCenter">
+            <button type="button" class="custom-select-btn" id="csBtnCostCenter" onclick="toggleCustomSelect('costCenter', event)">
+              <span class="custom-select-label" id="csLabelCostCenter">Tous centres de coût (9)</span>
+              <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="custom-select-menu" id="csMenuCostCenter">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          <select id="globalFilterCostCenter" style="display: none;" onchange="handleGlobalFilterChange('costCenter', this.value)">
+            <option value="ALL">Tous centres de coût (9)</option>
+          </select>
+        </div>
+
+        <!-- 3. Demandeur -->
+        <div class="filter-item">
+          <label class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Demandeur</span>
+          </label>
+          <div class="custom-select-box" id="csBoxRequester">
+            <button type="button" class="custom-select-btn" id="csBtnRequester" onclick="toggleCustomSelect('requester', event)">
+              <span class="custom-select-label" id="csLabelRequester">Tous demandeurs (12)</span>
+              <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="custom-select-menu" id="csMenuRequester">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          <select id="globalFilterRequester" style="display: none;" onchange="handleGlobalFilterChange('requester', this.value)">
+            <option value="ALL">Tous demandeurs (12)</option>
+          </select>
+        </div>
+
+        <!-- 4. Statut Paiement -->
+        <div class="filter-item">
+          <label class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            <span>Statut Paiement</span>
+          </label>
+          <div class="custom-select-box" id="csBoxStatus">
+            <button type="button" class="custom-select-btn" id="csBtnStatus" onclick="toggleCustomSelect('status', event)">
+              <span class="custom-select-label" id="csLabelStatus">Tous les statuts</span>
+              <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="custom-select-menu" id="csMenuStatus">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <select id="globalFilterStatus" style="display: none;" onchange="handleGlobalFilterChange('status', this.value)">
+            <option value="ALL">Tous les statuts</option>
+            <option value="Paid">Soldé (Paid)</option>
+            <option value="Partially Paid">Partiellement payé</option>
+            <option value="Pending">En attente (Pending)</option>
+          </select>
+        </div>
+
+        <!-- 5. Statut Approbation -->
+        <div class="filter-item">
+          <label class="filter-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <span>Approbation</span>
+          </label>
+          <div class="custom-select-box" id="csBoxApproval">
+            <button type="button" class="custom-select-btn" id="csBtnApproval" onclick="toggleCustomSelect('approval', event)">
+              <span class="custom-select-label" id="csLabelApproval">Tous statuts</span>
+              <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="custom-select-menu" id="csMenuApproval">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <select id="globalFilterApproval" style="display: none;" onchange="handleGlobalFilterChange('approval', this.value)">
+            <option value="ALL">Tous statuts</option>
+            <option value="Approved">Approuvé</option>
+            <option value="Exception">Exception / Litige</option>
+            <option value="On Hold">En Retenue</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Active Filter Banner / Breadcrumb -->
+      <div class="active-filter-strip" id="activeFilterStrip" style="display: none;">
+        <div class="active-filter-tags" id="activeFilterTags">
+          <!-- Dynamic tags -->
+        </div>
+        <div class="active-filter-impact" id="activeFilterImpact">
+          <!-- Dynamic impact info -->
+        </div>
+        <button class="indicator-clear-btn" onclick="resetAllGlobalFilters()">Annuler le filtre ✕</button>
+      </div>
+    </div>
+
+    <!-- ========================================================================
+         TAB 1: VUE SYNTHÉTIQUE (EXECUTIVE OVERVIEW)
+         ======================================================================== -->
+    <section class="tab-panel active" id="tab-overview">
+      
+      <!-- Strategic Hero KPI Grid -->
+      <div class="kpi-grid">
+        
+        <!-- KPI 1: Engagements Bons de Commande -->
+        <article class="kpi-card accent-cyan" onclick="filterSheetsByCard('po')" title="Cliquer pour filtrer les Bons de Commande dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Engagements</span>
+              <h2 class="kpi-title">Bons Commande</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiPoValue">196 500 000</span> <span class="kpi-currency" id="currLabel1">FCFA</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span>22 BCs émis</span>
+            <span class="kpi-trend positive">100% engagé</span>
+          </div>
+        </article>
+
+        <!-- KPI 2: Total Facturé TTC -->
+        <article class="kpi-card accent-blue" onclick="filterSheetsByCard('invoiced')" title="Cliquer pour filtrer les factures reçues dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Facturation</span>
+              <h2 class="kpi-title">Total Facturé</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiInvoicedTtc">221 350 000</span> <span class="kpi-currency" id="currLabel2">FCFA</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span id="kpiInvoicedCount">88 factures</span>
+            <span class="kpi-trend">HT: <span id="kpiInvoicedHt">187.6M</span></span>
+          </div>
+        </article>
+
+        <!-- KPI 3: Règlements Décaissés -->
+        <article class="kpi-card accent-emerald" onclick="filterSheetsByCard('paid')" title="Cliquer pour filtrer les règlements effectués dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Trésorerie</span>
+              <h2 class="kpi-title">Règlements</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiPaidAmount">200 980 000</span> <span class="kpi-currency" id="currLabel3">FCFA</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span id="kpiPaidRate">90.8% décaissé</span>
+            <span class="kpi-trend positive">68 soldées</span>
+          </div>
+        </article>
+
+        <!-- KPI 4: Solde Dû / Reste à Payer -->
+        <article class="kpi-card accent-amber" onclick="filterSheetsByCard('pending')" title="Cliquer pour filtrer les restes à payer dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Passif</span>
+              <h2 class="kpi-title">Reste à Payer</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiOutstandingAmount">20 370 000</span> <span class="kpi-currency" id="currLabel4">FCFA</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span id="kpiPendingCount">17 en attente</span>
+            <span class="kpi-trend warning">9.2% solde</span>
+          </div>
+        </article>
+
+        <!-- KPI 5: Cycle Moyen de Règlement -->
+        <article class="kpi-card accent-indigo" onclick="filterSheetsByCard('sla')" title="Cliquer pour analyser les délais et cycles SLA dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Performance</span>
+              <h2 class="kpi-title">Délai Moyen</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiAvgCycle">18.0</span> <span class="kpi-currency">Jours</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span>Cycle dépôt</span>
+            <span class="kpi-trend positive">SLA &lt; 30j</span>
+          </div>
+        </article>
+
+        <!-- KPI 6: Alertes d'Audit & Risque -->
+        <article class="kpi-card accent-coral" onclick="filterSheetsByCard('audit')" title="Cliquer pour filtrer les alertes d'audit et surfacturations dans la Matrice Intégrale">
+          <div class="kpi-header">
+            <div class="kpi-label-group">
+              <span class="kpi-category">Audit & Risques</span>
+              <h2 class="kpi-title">Alertes Audit</h2>
+            </div>
+            <div class="kpi-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+          </div>
+          <div class="kpi-metric-wrap">
+            <div class="kpi-val"><span id="kpiAlertCount">5</span> <span class="kpi-currency">Surfact.</span></div>
+          </div>
+          <div class="kpi-footer">
+            <span>17 retenues</span>
+            <span class="kpi-trend danger">Inspecter →</span>
+          </div>
+        </article>
+
+      </div>
+
+
+      <!-- Analytics Charts Dual Row -->
+      <div class="charts-row-dual">
+        
+        <!-- Trajectory Chart -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                <span>Trajectoire Financière : Facturé vs Règlements</span>
+              </h2>
+              <p class="section-subtitle">Comparaison de la facturation reçue et des décaissements réels</p>
+            </div>
+            <div class="chart-toggle-group">
+              <button class="chart-toggle-btn active" id="btnChartMonthly" onclick="setChartMode('monthly')">Vue Mensuelle</button>
+              <button class="chart-toggle-btn" id="btnChartCumulative" onclick="setChartMode('cumulative')">Vue Cumulée</button>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="trajectoryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Department Breakdown Chart -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                <span>Répartition par Département</span>
+              </h2>
+              <p class="section-subtitle">Ventilation des dépenses engagées selon les centres de coûts</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="deptChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Second Chart Row: Aging & Top Vendors -->
+      <div class="charts-row-dual">
+        
+        <!-- Cash Flow & Aging Bucket Chart -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span>Échéancier & Balance Âgée Prévisionnelle</span>
+              </h2>
+              <p class="section-subtitle">Distribution des créances et dettes par tranche d'ancienneté</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="agingChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Top 5 Strategic Suppliers Summary -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>Top 5 Fournisseurs Principaux</span>
+              </h2>
+              <p class="section-subtitle">Concentration des dépenses fournisseurs les plus significatives</p>
+            </div>
+            <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="switchTab('vendors')">Voir tous les 29 →</button>
+          </div>
+          <div class="table-responsive" style="min-height: auto;">
+            <table class="ledger-table">
+              <thead>
+                <tr>
+                  <th>Fournisseur</th>
+                  <th>Factures</th>
+                  <th style="text-align: right;">Total TTC</th>
+                  <th style="text-align: right;">Solde Dû</th>
+                </tr>
+              </thead>
+              <tbody id="topVendorsTbody">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Executive Department & Cost Center Expense Breakdown Table in Overview -->
+      <div class="chart-card" style="margin-top: 1.5rem;">
+        <div class="chart-card-header">
+          <div class="card-title-group">
+            <h2 class="section-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <span>Dépenses par Département & Centre de Coût (Synthèse Budgétaire)</span>
+            </h2>
+            <p class="section-subtitle">Consommation financière réelle, engagements sur bons de commande et décaissements réels par direction</p>
+          </div>
+          <button class="btn-secondary" style="font-size: 0.78rem;" onclick="switchTab('departments')">
+            Analyse Approfondie →
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="ledger-table" id="overviewDeptsTable">
+            <thead>
+              <tr>
+                <th>Département</th>
+                <th>Centres de Coût</th>
+                <th style="text-align: center;">Factures</th>
+                <th style="text-align: right;">Bons de Commande Engagés</th>
+                <th style="text-align: right;">Total Facturé TTC</th>
+                <th style="text-align: right;">Montant Réglé</th>
+                <th style="text-align: right;">Solde Restant Dû</th>
+                <th style="text-align: center;">Part Budgétaire %</th>
+                <th style="text-align: center;">Filtrer ce Pôle</th>
+              </tr>
+            </thead>
+            <tbody id="overviewDeptsTbody">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 2: GRAND LIVRE FACTURES (MASTER LEDGER)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-invoices">
+      
+      <div class="ledger-card">
+        
+        <!-- Toolbar & Filter Suite -->
+        <div class="ledger-toolbar">
+          <div class="toolbar-top">
+            <div class="search-box-wrap">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="ledgerSearchInput" class="search-input" placeholder="Rechercher par n° facture, bon de commande, fournisseur, demandeur..." oninput="handleSearch(this.value)">
+            </div>
+
+            <div class="toolbar-actions">
+              <button class="btn-secondary" onclick="exportLedgerCsv()" title="Télécharger le grand livre filtré en CSV">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Exporter CSV</span>
+              </button>
+              <button class="btn-secondary" onclick="resetLedgerFilters()" title="Réinitialiser tous les filtres">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                <span>Réinitialiser</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Multi-criteria Filter Chips -->
+          <div class="filter-chips-row">
+            
+            <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+              <option value="ALL">Tous les statuts de paiement</option>
+              <option value="Paid">Soldé (Paid)</option>
+              <option value="Partially Paid">Partiellement payé</option>
+              <option value="Pending">En attente (Pending)</option>
+            </select>
+
+            <select class="filter-select" id="filterApproval" onchange="applyFilters()">
+              <option value="ALL">Tous les statuts d'approbation</option>
+              <option value="Approved">Approuvé</option>
+              <option value="Exception">Exception</option>
+              <option value="On Hold">En attente / Retenue</option>
+              <option value="Processing">En cours de traitement</option>
+            </select>
+
+            <select class="filter-select" id="filterVendor" onchange="applyFilters()">
+              <option value="ALL">Tous les fournisseurs (29)</option>
+              <!-- Filled dynamically -->
+            </select>
+
+            <select class="filter-select" id="filterDept" onchange="applyFilters()">
+              <option value="ALL">Tous les départements</option>
+              <option value="Operations">Opérations</option>
+              <option value="Administration">Administration</option>
+              <option value="Logistics">Logistique</option>
+              <option value="IT">Informatique / IT</option>
+              <option value="Sales">Commercial / Ventes</option>
+              <option value="HR">Ressources Humaines</option>
+              <option value="Finance">Finance</option>
+            </select>
+
+            <select class="filter-select" id="filterCostCenter" onchange="applyFilters()">
+              <option value="ALL">Tous centres de coût</option>
+              <!-- Filled dynamically -->
+            </select>
+
+            <select class="filter-select" id="filterRequester" onchange="applyFilters()">
+              <option value="ALL">Tous demandeurs</option>
+              <!-- Filled dynamically -->
+            </select>
+
+            <select class="filter-select" id="filterPaymentType" onchange="applyFilters()">
+              <option value="ALL">Tous modes de règlement</option>
+              <option value="Bank Transfer">Virement Bancaire</option>
+              <option value="Cheque">Chèque</option>
+            </select>
+
+          </div>
+        </div>
+
+        <!-- Master Table -->
+        <div class="table-responsive">
+          <table class="ledger-table" id="masterLedgerTable">
+            <thead>
+              <tr>
+                <th onclick="sortLedger('sn')">N°</th>
+                <th onclick="sortLedger('invoiceNo')">N° Facture</th>
+                <th onclick="sortLedger('date')">Date Facture</th>
+                <th onclick="sortLedger('vendor')">Fournisseur</th>
+                <th onclick="sortLedger('poNumber')">Bon Commande</th>
+                <th onclick="sortLedger('dept')">Département</th>
+                <th onclick="sortLedger('costCenter')">Centre Coût</th>
+                <th onclick="sortLedger('requester')">Demandeur</th>
+                <th>Prestation</th>
+                <th style="text-align: right;" onclick="sortLedger('valTtc')">Montant TTC</th>
+                <th style="text-align: right;" onclick="sortLedger('paid')">Montant Réglé</th>
+                <th style="text-align: right;" onclick="sortLedger('outstanding')">Solde Restant</th>
+                <th onclick="sortLedger('cycleDays')">Délai Cycle</th>
+                <th>Statut Paiement</th>
+                <th>Approbation</th>
+              </tr>
+            </thead>
+            <tbody id="masterLedgerTbody">
+              <!-- Populated dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table Pagination Bar -->
+        <div class="ledger-pagination">
+          <div class="page-info">
+            Affichage de <span id="pageShowingStart">1</span> à <span id="pageShowingEnd">25</span> sur <span id="pageTotalCount">88</span> factures filtrées
+          </div>
+          <div class="page-controls">
+            <button class="btn-page" id="btnPrevPage" onclick="changePage(-1)" disabled>Précédent</button>
+            <span style="font-weight: 700; font-family: var(--font-mono); padding: 0 0.5rem;" id="pageCurrentLabel">1 / 4</span>
+            <button class="btn-page" id="btnNextPage" onclick="changePage(1)">Suivant</button>
+            <select class="filter-select" style="margin-left: 0.5rem;" id="pageSizeSelect" onchange="changePageSize(this.value)">
+              <option value="25" selected>25 par page</option>
+              <option value="50">50 par page</option>
+              <option value="100">100 par page</option>
+              <option value="ALL">Tout afficher</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 3: BONS DE COMMANDE & ENGAGEMENTS (PO INTELLIGENCE - VUE LIGNES)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-pos">
+      
+      <div class="card-title-group" style="margin-bottom: 1rem;">
+        <h2 class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <span id="posTitleWithCount">Portefeuille des Bons de Commande & Engagements (25 BCs)</span>
+        </h2>
+        <p class="section-subtitle">Suivi du taux de consommation des engagements, des soldes restants et des dépassements contractuels</p>
+      </div>
+
+      <!-- Quick Metrics Summary Bar for POs -->
+      <div class="summary-kpi-bar">
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Volume Total Engagé</span>
+          <span class="summary-kpi-val" id="poKpiTotalEngaged">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Total Facturé TTC</span>
+          <span class="summary-kpi-val" id="poKpiTotalInvoiced" style="color: var(--accent-cyan);">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Taux Moyen de Consommation</span>
+          <span class="summary-kpi-val" id="poKpiAvgRate" style="color: var(--accent-emerald);">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Bons en Dépassement</span>
+          <span class="summary-kpi-val" id="poKpiOverCount" style="color: var(--accent-coral);">--</span>
+        </div>
+      </div>
+
+      <!-- PO Table Card -->
+      <div class="ledger-card">
+        <div class="ledger-toolbar">
+          <div class="toolbar-top">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; flex-wrap: wrap;">
+              <div class="search-box-wrap" style="max-width: 420px;">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="poSearchInput" class="search-input" placeholder="Rechercher par N° BC ou Fournisseur..." oninput="handlePoSearch(this.value)">
+              </div>
+              <select class="filter-select" id="poFilterStatus" onchange="handlePoStatusFilter(this.value)">
+                <option value="ALL">Tous les statuts de commande</option>
+                <option value="Partially Invoiced">En cours d'instruction (Partially Invoiced)</option>
+                <option value="Closed">Soldés (Closed)</option>
+                <option value="Dépassement">Dépassement de budget</option>
+              </select>
+            </div>
+            <div class="toolbar-actions">
+              <span class="badge-cycle" id="poFilteredCountBadge" style="font-size: 0.78rem; padding: 0.4rem 0.75rem;">25 BCs affichés</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="ledger-table" id="posMasterTable">
+            <thead>
+              <tr>
+                <th onclick="sortPosTable('poNumber')">N° Bon de Commande</th>
+                <th onclick="sortPosTable('vendorName')">Fournisseur Partenaire</th>
+                <th onclick="sortPosTable('department')">Département</th>
+                <th onclick="sortPosTable('costCenter')">Centre Coût</th>
+                <th onclick="sortPosTable('status')">Statut BC</th>
+                <th style="text-align: right;" onclick="sortPosTable('poValue')">Engagement (Valeur BC)</th>
+                <th style="text-align: right;" onclick="sortPosTable('invoicedTtc')">Facturé TTC</th>
+                <th style="min-width: 140px;" onclick="sortPosTable('rate')">Taux de Consommation</th>
+                <th style="text-align: right;" onclick="sortPosTable('remaining')">Solde Disponible</th>
+                <th style="text-align: center;" onclick="sortPosTable('invoicesCount')">Factures</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="posTableTbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 4: FOURNISSEURS & PARTENAIRES (VENDOR HUB - VUE LIGNES)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-vendors">
+      
+      <div class="card-title-group" style="margin-bottom: 1rem;">
+        <h2 class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span id="vendorsTitleWithCount">Répertoire Stratégique des Fournisseurs Partenaires (29 Fournisseurs)</span>
+        </h2>
+        <p class="section-subtitle">Performance financière, historique de facturation et délais moyens de règlement par partenaire</p>
+      </div>
+
+      <!-- Quick Metrics Summary Bar for Vendors -->
+      <div class="summary-kpi-bar">
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Fournisseurs Actifs</span>
+          <span class="summary-kpi-val" id="vendorKpiTotal">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Volume d'Achat Global TTC</span>
+          <span class="summary-kpi-val" id="vendorKpiTotalVolume" style="color: var(--accent-cyan);">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Total Décaissé Réglé</span>
+          <span class="summary-kpi-val" id="vendorKpiTotalPaid" style="color: var(--accent-emerald);">--</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Encours Restant à Payer</span>
+          <span class="summary-kpi-val" id="vendorKpiOutstanding" style="color: var(--accent-amber);">--</span>
+        </div>
+      </div>
+
+      <!-- Vendor Table Card -->
+      <div class="ledger-card">
+        <div class="ledger-toolbar">
+          <div class="toolbar-top">
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex: 1; flex-wrap: wrap;">
+              <div class="search-box-wrap" style="max-width: 420px;">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="vendorSearchInput" class="search-input" placeholder="Rechercher par Nom ou Code Fournisseur..." oninput="handleVendorSearch(this.value)">
+              </div>
+              <select class="filter-select" id="vendorFilterOutstanding" onchange="handleVendorFilter(this.value)">
+                <option value="ALL">Tous les fournisseurs</option>
+                <option value="WITH_BALANCE">Avec solde dû restant (> 0 FCFA)</option>
+                <option value="FULLY_PAID">Entièrement soldés (Solde = 0 FCFA)</option>
+              </select>
+            </div>
+            <div class="toolbar-actions">
+              <span class="badge-cycle" id="vendorFilteredCountBadge" style="font-size: 0.78rem; padding: 0.4rem 0.75rem;">29 Fournisseurs affichés</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="ledger-table" id="vendorsMasterTable">
+            <thead>
+              <tr>
+                <th onclick="sortVendorsTable('code')">Code</th>
+                <th onclick="sortVendorsTable('name')">Nom du Fournisseur Partenaire</th>
+                <th style="text-align: center;" onclick="sortVendorsTable('invoicesCount')">Factures</th>
+                <th style="text-align: right;" onclick="sortVendorsTable('totalTtc')">Total Facturé TTC</th>
+                <th style="text-align: right;" onclick="sortVendorsTable('paid')">Total Réglé</th>
+                <th style="text-align: right;" onclick="sortVendorsTable('outstanding')">Solde Restant Dû</th>
+                <th style="text-align: center;" onclick="sortVendorsTable('avgCycle')">Délai Règlement</th>
+                <th style="text-align: center;">Statut Règlement</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="vendorsTableTbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 5: DÉPARTEMENTS, CENTRES DE COÛT & DEMANDEURS (ANALYTIQUE MULTI-DIMENSIONNELLE)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-departments">
+      
+      <div class="card-title-group" style="margin-bottom: 1rem;">
+        <h2 class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span id="deptsHeaderTitle">Analyse Analytique : Départements, Centres de Coût & Demandeurs</span>
+        </h2>
+        <p class="section-subtitle">Ventilation budgétaire multi-dimensionnelle, suivi des engagements et contrôle de gestion approfondi</p>
+      </div>
+
+      <!-- Quick Metrics Summary Bar for Analytics -->
+      <div class="summary-kpi-bar">
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Départements Opérationnels</span>
+          <span class="summary-kpi-val" id="analyticsKpiDepts">7</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Centres de Coût Actifs</span>
+          <span class="summary-kpi-val" id="analyticsKpiCostCenters" style="color: var(--accent-cyan);">8 Centres</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Demandeurs & Prescripteurs</span>
+          <span class="summary-kpi-val" id="analyticsKpiRequesters" style="color: var(--accent-emerald);">15+ Agents</span>
+        </div>
+        <div class="summary-kpi-card">
+          <span class="summary-kpi-label">Top Pôle Dépensier</span>
+          <span class="summary-kpi-val" id="analyticsKpiTopDept" style="color: var(--accent-amber);">Operations</span>
+        </div>
+      </div>
+
+      <!-- Interactive Analytical Charts Row -->
+      <div class="charts-row-dual" style="margin-bottom: 1.5rem;">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                <span>Dépenses par Département (TTC)</span>
+              </h2>
+              <p class="section-subtitle">Part relative de chaque direction dans le volume facturé total</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="analyticsDeptChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                <span>Ventilation par Centre de Coût (FCFA)</span>
+              </h2>
+              <p class="section-subtitle">Consommation financière réelle par code analytique (CC-XXXX)</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="analyticsCostCenterChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-View Switcher Pills -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="subview-pills">
+          <button class="subview-pill active" id="btnSubDept" onclick="switchAnalyticsSubView('departments')">
+            <span>Par Département (7)</span>
+          </button>
+          <button class="subview-pill" id="btnSubCostCenter" onclick="switchAnalyticsSubView('costCenters')">
+            <span>Par Centre de Coût (8)</span>
+          </button>
+          <button class="subview-pill" id="btnSubRequester" onclick="switchAnalyticsSubView('requesters')">
+            <span>Par Demandeur (15+)</span>
+          </button>
+        </div>
+
+        <div class="search-box-wrap" style="max-width: 350px;">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="analyticsSearchInput" class="search-input" placeholder="Filtrer la table analytique active..." oninput="handleAnalyticsSearch(this.value)">
+        </div>
+      </div>
+
+      <!-- TABLE 1: PAR DÉPARTEMENT -->
+      <div class="ledger-card" id="viewAnalyticsDepartments">
+        <div class="table-responsive">
+          <table class="ledger-table" id="analyticsDeptsTable">
+            <thead>
+              <tr>
+                <th onclick="sortAnalyticsTable('departments', 'name')">Département</th>
+                <th>Centres de Coût Associés</th>
+                <th style="text-align: center;" onclick="sortAnalyticsTable('departments', 'invoicesCount')">Nb Factures</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('departments', 'totalTtc')">Total Facturé TTC</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('departments', 'paid')">Total Réglé</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('departments', 'outstanding')">Solde Restant</th>
+                <th style="text-align: center;" onclick="sortAnalyticsTable('departments', 'pctShare')">Part Budget %</th>
+                <th style="text-align: center;" onclick="sortAnalyticsTable('departments', 'avgCycle')">Délai Moyen</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsDeptsTbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABLE 2: PAR CENTRE DE COÛT -->
+      <div class="ledger-card" id="viewAnalyticsCostCenters" style="display: none;">
+        <div class="table-responsive">
+          <table class="ledger-table" id="analyticsCostCentersTable">
+            <thead>
+              <tr>
+                <th onclick="sortAnalyticsTable('costCenters', 'code')">Code Centre de Coût</th>
+                <th onclick="sortAnalyticsTable('costCenters', 'department')">Département de Rattachement</th>
+                <th style="text-align: center;" onclick="sortAnalyticsTable('costCenters', 'invoicesCount')">Nb Factures</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('costCenters', 'totalTtc')">Total Facturé TTC</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('costCenters', 'paid')">Total Réglé</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('costCenters', 'outstanding')">Solde Restant Dû</th>
+                <th style="text-align: center;">Statut Règlements</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsCostCentersTbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TABLE 3: PAR DEMANDEUR -->
+      <div class="ledger-card" id="viewAnalyticsRequesters" style="display: none;">
+        <div class="table-responsive">
+          <table class="ledger-table" id="analyticsRequestersTable">
+            <thead>
+              <tr>
+                <th onclick="sortAnalyticsTable('requesters', 'requester')">Code Demandeur / Prescripteur</th>
+                <th onclick="sortAnalyticsTable('requesters', 'department')">Département</th>
+                <th onclick="sortAnalyticsTable('requesters', 'costCenter')">Centre de Coût</th>
+                <th style="text-align: center;" onclick="sortAnalyticsTable('requesters', 'invoicesCount')">Demandes Facturées</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('requesters', 'totalTtc')">Dépenses Engagées TTC</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('requesters', 'paid')">Montant Réglé</th>
+                <th style="text-align: right;" onclick="sortAnalyticsTable('requesters', 'outstanding')">Solde Dû</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsRequestersTbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 6: DÉLAIS & PERFORMANCE SLA
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-sla">
+      
+      <div class="charts-row-dual">
+        
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>Durée Moyenne par Étape du Processus (Jours)</span>
+              </h2>
+              <p class="section-subtitle">Identification des points d'engorgement et des goulots d'étranglement</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="slaStagesChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="card-title-group">
+              <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><bar x="3" y="3" width="18" height="18"></bar></svg>
+                <span>Délai Moyen par Département (SLA)</span>
+              </h2>
+              <p class="section-subtitle">Temps moyen entre le dépôt de la facture et l'exécution finale</p>
+            </div>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="slaDeptChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 6: RADAR D'AUDIT & RISQUES (FRAUD & ANOMALY WATCH)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-audit">
+      
+      <div class="card-title-group" style="margin-bottom: 0.5rem;">
+        <h2 class="section-title" style="color: var(--accent-coral);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <span>Radar de Contrôle Interne & Anomalies Détectées</span>
+        </h2>
+        <p class="section-subtitle">Surveillance proactive des surfacturations, litiges, dépassements budgétaires et blocages administratifs</p>
+      </div>
+
+      <!-- Critical Over-Invoiced POs Card -->
+      <div class="ledger-card" style="border-left: 4px solid var(--accent-coral);">
+        <div class="ledger-toolbar">
+          <div class="card-title-group">
+            <h3 style="font-family: var(--font-heading); font-size: 1rem; color: var(--accent-coral); display: flex; align-items: center; gap: 0.5rem;">
+              <span class="pill-alert">CRITIQUE</span>
+              <span>Dépassements & Surfacturations de Bons de Commande (5 Détectés)</span>
+            </h3>
+            <p class="section-subtitle">Factures enregistrées avec le drapeau de surfacturation « Over-Invoiced Flag = Yes »</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>N° Facture</th>
+                <th>Bon de Commande</th>
+                <th>Fournisseur</th>
+                <th>Montant Facturé TTC</th>
+                <th>Valeur du BC</th>
+                <th>Écart Constaté (Variance)</th>
+                <th>Motif & Remarque</th>
+              </tr>
+            </thead>
+            <tbody id="auditOverInvoicedTbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Invoices with Exception or Hold Reason -->
+      <div class="ledger-card" style="border-left: 4px solid var(--accent-amber); margin-top: 1.5rem;">
+        <div class="ledger-toolbar">
+          <div class="card-title-group">
+            <h3 style="font-family: var(--font-heading); font-size: 1rem; color: var(--accent-amber); display: flex; align-items: center; gap: 0.5rem;">
+              <span class="badge-status partially-paid">ATTENTION</span>
+              <span>Factures en Statut Exception ou Mise en Attente (Hold)</span>
+            </h3>
+            <p class="section-subtitle">Dossiers nécessitant une régularisation documentaire ou une justification technique</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>N° Facture</th>
+                <th>Date</th>
+                <th>Fournisseur</th>
+                <th>Montant TTC</th>
+                <th>Statut Approbation</th>
+                <th>Motif de Retenue / Exception</th>
+              </tr>
+            </thead>
+            <tbody id="auditExceptionsTbody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================================
+         TAB 6: MATRICE INTÉGRALE GOOGLE SHEETS (LES 54 COLONNES)
+         ======================================================================== -->
+    <section class="tab-panel" id="tab-sheets">
+      <div class="ledger-card">
+        
+        <div class="ledger-toolbar">
+          <div class="toolbar-top">
+            <div class="search-box-wrap" style="flex: 1; max-width: 480px;">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="sheetsSearchInput" class="search-input" placeholder="Rechercher dans toutes les 54 colonnes de la feuille..." oninput="handleSheetsSearch(this.value)">
+            </div>
+
+            <div class="toolbar-actions">
+              <span class="badge-cycle" id="sheetsRowCountBadge" style="font-size: 0.8rem; padding: 0.4rem 0.85rem;">88 Lignes • 54 Colonnes</span>
+              <button class="btn-secondary" onclick="exportFull54ColumnsCsv()" title="Télécharger l'intégralité des 54 colonnes en format CSV Excel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Exporter 54 Colonnes (CSV)</span>
+              </button>
+            </div>
+          </div>
+          
+          <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>Affichage exhaustif de l'intégralité des 54 colonnes synchronisées en direct avec Google Sheets. Faites défiler horizontalement pour consulter toutes les données.</span>
+          </div>
+        </div>
+
+        <!-- Active Filter Indicator Banner for Matrice Intégrale -->
+        <div id="sheetsActiveFilterBanner" class="sheets-filter-banner" style="display: none;">
+          <div class="filter-banner-content">
+            <div class="filter-banner-tag">
+              <span class="filter-banner-dot"></span>
+              <span id="sheetsFilterBannerText">Filtre actif : Factures Reçues</span>
+            </div>
+            <span class="filter-banner-count" id="sheetsFilterBannerCount">(88 factures)</span>
+          </div>
+          <button type="button" class="btn-clear-sheets-filter" onclick="resetSheetsFilterPreset()" title="Réinitialiser et afficher toutes les 88 factures">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Voir toutes les 88 lignes</span>
+          </button>
+        </div>
+
+        <!-- 54-Column Complete Grid with Horizontal Scroll -->
+        <div class="table-responsive sheets-scroll-wrapper">
+          <table class="ledger-table sheets-matrix-table" id="fullSheetsMasterTable">
+            <thead>
+              <tr>
+                <th class="col-sticky col-sticky-sn" onclick="sortSheetsTable('sn')">1. SN</th>
+                <th class="col-sticky col-sticky-inv" onclick="sortSheetsTable('invoiceNo')">6. N° Facture</th>
+                <th class="col-sticky col-sticky-vendor" onclick="sortSheetsTable('vendorName')">5. Fournisseur</th>
+                <th onclick="sortSheetsTable('companyCode')">2. Société</th>
+                <th onclick="sortSheetsTable('receiptDate')">3. Date Réception</th>
+                <th onclick="sortSheetsTable('vendorCode')">4. Code Fournisseur</th>
+                <th onclick="sortSheetsTable('invoiceType')">7. Type Facture</th>
+                <th onclick="sortSheetsTable('pcType')">8. Type Commande</th>
+                <th onclick="sortSheetsTable('poNumber')">9. N° Bon Commande</th>
+                <th onclick="sortSheetsTable('poCreationDate')">10. Date Création BC</th>
+                <th onclick="sortSheetsTable('poApprovalDate')">11. Date Approbation BC</th>
+                <th onclick="sortSheetsTable('poStatus')">12. Statut BC</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('poValue')">13. Valeur BC</th>
+                <th onclick="sortSheetsTable('currency')">14. Devise</th>
+                <th onclick="sortSheetsTable('invoiceDate')">15. Date Facture</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('valHt')">16. Montant HT</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('valVat')">17. Montant TVA</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('valTtc')">18. Montant TTC</th>
+                <th style="min-width: 220px;" onclick="sortSheetsTable('workDesc')">19. Description Prestation</th>
+                <th onclick="sortSheetsTable('department')">20. Département</th>
+                <th onclick="sortSheetsTable('costCenter')">21. Centre de Coût</th>
+                <th onclick="sortSheetsTable('requester')">22. Demandeur</th>
+                <th onclick="sortSheetsTable('paymentType')">23. Mode Règlement</th>
+                <th onclick="sortSheetsTable('paymentTerms')">24. Conditions Paiement</th>
+                <th onclick="sortSheetsTable('dueDate')">25. Date Échéance</th>
+                <th onclick="sortSheetsTable('sesGrnNo')">26. N° SES/GRN</th>
+                <th onclick="sortSheetsTable('sesGrnStatus')">27. Statut SES/GRN</th>
+                <th onclick="sortSheetsTable('pcSentDate')">28. Date Envoi PC</th>
+                <th onclick="sortSheetsTable('grnReceivedDate')">29. Date Réception SES/GRN</th>
+                <th onclick="sortSheetsTable('submitFinanceDate')">30. Date Dépôt Finance</th>
+                <th onclick="sortSheetsTable('approvalDate')">31. Date Approbation</th>
+                <th onclick="sortSheetsTable('paymentDate')">32. Date Paiement</th>
+                <th onclick="sortSheetsTable('payRef')">33. Réf Paiement</th>
+                <th onclick="sortSheetsTable('paymentStatus')">34. Statut Paiement</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('paidAmount')">35. Montant Payé</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('outstanding')">36. Solde Restant</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('previousInvoiced')">37. Facturé Antérieur</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('cumulativeInvoiced')">38. Cumul Facturé</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('remainingPo')">39. Solde Dispo BC</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('poUtilization')">40. % Utilisation BC</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('poVariance')">41. Écart BC</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('overInvoiced')">42. Surfacturation</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('previousPaid')">43. Réglé Antérieur</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('cumulativePaid')">44. Cumul Réglé BC</th>
+                <th style="text-align: right;" onclick="sortSheetsTable('poUnpaidBalance')">45. Solde Non Réglé BC</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('finalInvoiceFlag')">46. Facture Finale</th>
+                <th onclick="sortSheetsTable('exceptionReason')">47. Motif Exception</th>
+                <th onclick="sortSheetsTable('invoiceStatus')">48. Statut Approbation</th>
+                <th style="min-width: 180px;" onclick="sortSheetsTable('remarks')">49. Remarques</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('step1Days')">50. Jours Réception → PC</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('step2Days')">51. Jours PC → SES/GRN</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('step3Days')">52. Jours SES/GRN → Finance</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('step4Days')">53. Jours Finance → Paiement</th>
+                <th style="text-align: center;" onclick="sortSheetsTable('cycleDays')">54. Cycle Total Jours</th>
+              </tr>
+            </thead>
+            <tbody id="fullSheetsMasterTbody">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination for 54-column sheets table -->
+        <div class="ledger-pagination">
+          <div class="page-info">
+            Affichage de <span id="sheetsShowingStart">1</span> à <span id="sheetsShowingEnd">25</span> sur <span id="sheetsTotalCount">88</span> factures
+          </div>
+          <div class="page-controls">
+            <button class="btn-page" id="btnSheetsPrev" onclick="changeSheetsPage(-1)" disabled>Précédent</button>
+            <span style="font-weight: 700; font-family: var(--font-mono); padding: 0 0.5rem;" id="sheetsPageCurrentLabel">1 / 4</span>
+            <button class="btn-page" id="btnSheetsNext" onclick="changeSheetsPage(1)">Suivant</button>
+            <select class="filter-select" style="margin-left: 0.5rem;" id="sheetsPageSizeSelect" onchange="changeSheetsPageSize(this.value)">
+              <option value="25" selected>25 par page</option>
+              <option value="50">50 par page</option>
+              <option value="100">100 par page</option>
+              <option value="ALL">Tout afficher</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       INVOICE DETAIL DRAWER (MODAL LATÉRAL)
+       ========================================================================== -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer(event)">
+    <aside class="detail-drawer" id="invoiceDetailDrawer" onclick="event.stopPropagation()">
+      <div class="drawer-header">
+        <div>
+          <h2 style="font-family: var(--font-heading); font-size: 1.15rem; font-weight: 800;" id="drawerInvoiceNo">INV-0100-01</h2>
+          <span style="font-size: 0.76rem; color: var(--text-secondary);" id="drawerVendorName">Benin Industrial Supply</span>
+        </div>
+        <button class="drawer-close" onclick="closeDrawer()" title="Fermer le tiroir">&times;</button>
+      </div>
+
+      <div class="drawer-body">
+        
+        <!-- 3-Way Match Verification Card -->
+        <div class="match-card">
+          <span class="detail-section-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            <span>Contrôle Rapprochement 3-Way Matching (Google Sheets)</span>
+          </span>
+          <div class="match-status-row">
+            <span>Bon de Commande (PO) :</span>
+            <span class="mono-val" id="drawerPoMatch">PO-2026-0100</span>
+          </div>
+          <div class="match-status-row">
+            <span>Réception Matérielle (SES/GRN) :</span>
+            <span class="mono-val" id="drawerGrnMatch">GRN-0100-01</span>
+          </div>
+          <div class="match-status-row">
+            <span>Conformité Budgétaire & Écart :</span>
+            <span id="drawerVarianceMatch" style="font-weight: 700;">Aucun dépassement</span>
+          </div>
+        </div>
+
+        <!-- 1. Identification & Données Générales -->
+        <div>
+          <h3 class="detail-section-title">1. Identification & Données Pièce Comptable</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item-label">Code Société</span>
+              <span class="detail-item-val mono-val" id="drawerCompanyCode">BIS</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Type de Facture</span>
+              <span class="detail-item-val" id="drawerInvoiceType">Material</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Type de Bon de Commande (PC)</span>
+              <span class="detail-item-val" id="drawerPcType">Standard</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Code Fournisseur</span>
+              <span class="detail-item-val mono-val" id="drawerVendorCode">FOU-001</span>
+            </div>
+            <div class="detail-item" style="grid-column: span 2;">
+              <span class="detail-item-label">Description des Prestations / Travaux</span>
+              <span class="detail-item-val" id="drawerWorkDesc">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Imputation Analytique & Organisation -->
+        <div>
+          <h3 class="detail-section-title">2. Organisation & Imputation Analytique</h3>
+          <div class="detail-grid">
+            <div class="detail-item" style="border-left: 3px solid var(--accent-blue);">
+              <span class="detail-item-label">Département Bénéficiaire</span>
+              <span class="detail-item-val" id="drawerDept" style="font-weight: 700;">Operations</span>
+            </div>
+            <div class="detail-item" style="border-left: 3px solid var(--accent-cyan);">
+              <span class="detail-item-label">Centre de Coût (Cost Center)</span>
+              <span class="detail-item-val mono-val" id="drawerCostCenter" style="font-weight: 800; color: var(--accent-cyan);">CC-0004</span>
+            </div>
+            <div class="detail-item" style="border-left: 3px solid var(--accent-emerald);">
+              <span class="detail-item-label">Demandeur / Prescripteur</span>
+              <span class="detail-item-val mono-val" id="drawerRequester" style="font-weight: 700;">EMP-0013</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Facture Finale Contrat</span>
+              <span class="detail-item-val" id="drawerFinalInvoiceFlag">Non</span>
+            </div>
+            <div class="detail-item" style="grid-column: span 2;">
+              <span class="detail-item-label">Remarques & Observations</span>
+              <span class="detail-item-val" id="drawerRemarks" style="font-size: 0.78rem;">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Bon de Commande & Engagement -->
+        <div>
+          <h3 class="detail-section-title">3. Bon de Commande & Suivi Budgétaire</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item-label">N° Bon de Commande</span>
+              <span class="detail-item-val mono-val" id="drawerPoNumber" style="color: var(--accent-cyan); font-weight: 700;">PO-2026-0100</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Statut du BC</span>
+              <span class="detail-item-val" id="drawerPoStatus">Partially Invoiced</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Montant Engagé (Valeur BC)</span>
+              <span class="detail-item-val mono-val" id="drawerPoValue" style="font-weight: 800;">10 000 000 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Solde Restant Disponible BC</span>
+              <span class="detail-item-val mono-val" id="drawerRemainingPo">8 000 000 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Taux d'Utilisation BC</span>
+              <span class="detail-item-val mono-val" id="drawerPoUtil">20%</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Écart / Variance Budgétaire</span>
+              <span class="detail-item-val mono-val" id="drawerPoVariance">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Création BC</span>
+              <span class="detail-item-val mono-val" id="drawerPoCreationDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Approbation BC</span>
+              <span class="detail-item-val mono-val" id="drawerPoApprovalDate">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Réception Matérielle SES/GRN & Circuit Approbation -->
+        <div>
+          <h3 class="detail-section-title">4. Réception Marchandise & Circuit Approbation</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item-label">N° SES / GRN</span>
+              <span class="detail-item-val mono-val" id="drawerGrnNo">GRN-0100-01</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Statut SES / GRN</span>
+              <span class="detail-item-val" id="drawerGrnStatus">Complete</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Envoi Bon de Commande</span>
+              <span class="detail-item-val mono-val" id="drawerPcSentDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Réception SES / GRN</span>
+              <span class="detail-item-val mono-val" id="drawerGrnReceivedDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Transmission Finance</span>
+              <span class="detail-item-val mono-val" id="drawerSubmitFinanceDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Approbation DAF</span>
+              <span class="detail-item-val mono-val" id="drawerApprovalDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Statut Approbation Facture</span>
+              <span class="detail-item-val" id="drawerInvoiceStatus">Approved</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Motif Retenue / Exception</span>
+              <span class="detail-item-val" id="drawerExceptionReason">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Décomposition Financière & Règlements -->
+        <div>
+          <h3 class="detail-section-title">5. Décomposition Financière & Règlements</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item-label">Montant Hors Taxe (HT)</span>
+              <span class="detail-item-val mono-val" id="drawerValHt">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Montant TVA</span>
+              <span class="detail-item-val mono-val" id="drawerValVat">0 FCFA</span>
+            </div>
+            <div class="detail-item" style="border-left: 3px solid var(--accent-blue);">
+              <span class="detail-item-label">Total Facturé TTC</span>
+              <span class="detail-item-val mono-val" id="drawerValTtc" style="color: var(--accent-cyan); font-weight: 800;">0 FCFA</span>
+            </div>
+            <div class="detail-item" style="border-left: 3px solid var(--accent-emerald);">
+              <span class="detail-item-label">Montant Réglé Effectif</span>
+              <span class="detail-item-val mono-val" id="drawerValPaid" style="color: var(--accent-emerald); font-weight: 800;">0 FCFA</span>
+            </div>
+            <div class="detail-item" style="border-left: 3px solid var(--accent-amber);">
+              <span class="detail-item-label">Solde Restant Dû</span>
+              <span class="detail-item-val mono-val" id="drawerValOutstanding" style="color: var(--accent-amber); font-weight: 800;">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Statut Règlement</span>
+              <span class="detail-item-val" id="drawerPaymentStatus">Payé</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Cumul Facturé Antérieur</span>
+              <span class="detail-item-val mono-val" id="drawerPrevInvoiced">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Cumul Réglé Antérieur</span>
+              <span class="detail-item-val mono-val" id="drawerPrevPaid">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Solde Non Payé sur BC</span>
+              <span class="detail-item-val mono-val" id="drawerPoUnpaidBalance">0 FCFA</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Référence Paiement / Virement</span>
+              <span class="detail-item-val mono-val" id="drawerPayRef">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Mode de Paiement</span>
+              <span class="detail-item-val" id="drawerPaymentType">Bank Transfer</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Conditions de Règlement (Jours)</span>
+              <span class="detail-item-val mono-val" id="drawerPaymentTerms">30 jours</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Dépôt / Réception</span>
+              <span class="detail-item-val mono-val" id="drawerReceiptDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date d'Échéance Légale</span>
+              <span class="detail-item-val mono-val" id="drawerDueDate">-</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Date Exécution Paiement</span>
+              <span class="detail-item-val mono-val" id="drawerPaymentDate">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Audit & Délais de Cycle par Étape -->
+        <div>
+          <h3 class="detail-section-title">6. Audit des Délais de Cycle & Traçabilité SLA</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-item-label">Étape 1 : Réception → Demande PC</span>
+              <span class="detail-item-val mono-val" id="drawerStep1">- jours</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Étape 2 : PC Envoyé → SES/GRN Reçu</span>
+              <span class="detail-item-val mono-val" id="drawerStep2">- jours</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Étape 3 : SES/GRN → Soumission Finance</span>
+              <span class="detail-item-val mono-val" id="drawerStep3">- jours</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-item-label">Étape 4 : Approbation Finance → Paiement</span>
+              <span class="detail-item-val mono-val" id="drawerStep4">- jours</span>
+            </div>
+            <div class="detail-item" style="grid-column: span 2; border-left: 3px solid var(--accent-cyan); background: var(--bg-surface-elevated);">
+              <span class="detail-item-label">Délai Global d'Instruction (Facture → Règlement)</span>
+              <span class="detail-item-val mono-val" id="drawerCycleDays" style="font-size: 1.1rem; color: var(--accent-cyan); font-weight: 800;">- jours</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- ==========================================================================
+       GOOGLE SHEET LIVE DIAGNOSTIC MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="diagnosticModal" onclick="closeDiagnosticModal(event)">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-heading); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>Centre de Synchronisation Google Sheets</span>
+        </h2>
+        <button class="drawer-close" onclick="closeDiagnosticModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">
+          Le tableau de bord est relié en temps réel et en direct à la feuille Google Sheets source. Toute modification opérée dans la feuille est automatiquement détectée et répercutée.
+        </p>
+
+        <div class="diagnostic-item">
+          <span style="color: var(--text-secondary);">Identifiant Google Sheet :</span>
+          <span class="mono-val" style="font-weight: 700;">10Zhtwgra9yr67Qt-LnflXNCMubBd8HWMSQ1YwcgJmog</span>
+        </div>
+
+        <div class="diagnostic-item">
+          <span style="color: var(--text-secondary);">Statut de liaison :</span>
+          <span class="badge-status paid">Connecté & Actif</span>
+        </div>
+
+        <div class="diagnostic-item">
+          <span style="color: var(--text-secondary);">Factures enregistrées :</span>
+          <span class="mono-val" id="modalRowsCount" style="font-weight: 800;">85</span>
+        </div>
+
+        <div class="diagnostic-item">
+          <span style="color: var(--text-secondary);">Fréquence de vérification auto :</span>
+          <span style="font-weight: 700;">Toutes les 30 secondes</span>
+        </div>
+
+        <div class="diagnostic-item">
+          <span style="color: var(--text-secondary);">Dernière synchronisation réussie :</span>
+          <span class="mono-val" id="modalLastSync">-</span>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+          <a href="https://docs.google.com/spreadsheets/d/10Zhtwgra9yr67Qt-LnflXNCMubBd8HWMSQ1YwcgJmog/edit?usp=sharing" target="_blank" class="btn-gsheet-direct" style="flex: 1; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <span>Accéder au Google Sheet</span>
+          </a>
+          <button class="btn-secondary" style="flex: 1; justify-content: center;" onclick="triggerManualSync()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <span>Tester / Forcer Synchro</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Hub -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ==========================================================================
+       AI DATA ANALYST — CHATBOT FLOATING TRIGGER
+       ========================================================================== -->
+  <button class="ai-floating-trigger" id="aiChatbotTrigger" onclick="toggleAiChatbot()" aria-label="Ouvrir l'assistant AI Data Analyst" title="Consulter l'AI Data Analyst (Intelligence Artificielle Qwen)">
+    <div class="ai-trigger-pulse"></div>
+    <div class="ai-trigger-inner">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path>
+      </svg>
+    </div>
+    <span class="ai-trigger-label">AI Analyst</span>
+    <span class="ai-trigger-status-dot" id="aiTriggerStatusDot" title="Statut IA Actif"></span>
+  </button>
+
+  <!-- ==========================================================================
+       AI DATA ANALYST — EXECUTIVE CHAT WINDOW
+       ========================================================================== -->
+  <div class="ai-chatbot-window" id="aiChatbotWindow" role="dialog" aria-labelledby="aiChatbotTitle" aria-hidden="true">
+    <!-- Header -->
+    <div class="ai-chat-header">
+      <div class="ai-chat-header-main">
+        <div class="ai-avatar-badge">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path>
+          </svg>
+          <span class="ai-online-status-pip" id="aiHeaderStatusPip"></span>
+        </div>
+        <div class="ai-header-titles">
+          <div class="ai-header-row">
+            <h3 class="ai-title" id="aiChatbotTitle">AI Data Analyst</h3>
+            <span class="ai-model-tag" id="aiModelTag">Qwen Plus</span>
+          </div>
+          <span class="ai-subtitle">Intelligence Approvisionnements & DAF</span>
+        </div>
+      </div>
+      <div class="ai-header-controls">
+        <button class="ai-icon-btn" onclick="openAiSettingsModal()" title="Paramètres & Clé API Qwen">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+        <button class="ai-icon-btn" onclick="clearAiChat()" title="Effacer l'historique de conversation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+        <button class="ai-icon-btn" onclick="toggleAiChatbot()" title="Fermer la fenêtre">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Domain Guardrail Banner -->
+    <div class="ai-domain-banner">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      <span>Périmètre exclusif : Données internes, Factures, BC & Audits de l'entreprise</span>
+    </div>
+
+    <!-- Quick Prompts Chips -->
+    <div class="ai-quick-prompts-tray" id="aiQuickPrompts">
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">📊 Synthèse des impayés</button>
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">🏢 Top 5 fournisseurs</button>
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">🚨 Alertes surfacturation</button>
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">⏱️ Délais moyens de paiement</button>
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">📋 Statut PO-2026-0001</button>
+    </div>
+
+    <!-- Message History Body -->
+    <div class="ai-chat-body" id="aiChatMessages">
+      <div class="ai-message ai-message-assistant">
+        <div class="ai-message-avatar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM4.93 4.93a2 2 0 0 1 2.83 0l1.41 1.41a2 2 0 1 1-2.83 2.83L4.93 7.76a2 2 0 0 1 0-2.83zm14.14 0a2 2 0 0 1 0 2.83l-1.41 1.41a2 2 0 1 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.83 0zM12 10a5 5 0 0 1 5 5v5a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-5a5 5 0 0 1 5-5z"></path></svg>
+        </div>
+        <div class="ai-message-content">
+          <p>Bonjour, je suis votre <strong>AI Data Analyst</strong>, dédié exclusivement à l'analyse experte des approvisionnements, des bons de commande, de la comptabilité fournisseurs et des audits financiers de l'entreprise.</p>
+          <p>J'ai accès en temps réel à l'ensemble de vos données (88 factures, 25 bons de commande, 29 fournisseurs, 8 départements et les indicateurs SLA/audit).</p>
+          <p>Comment puis-je vous éclairer aujourd'hui sur vos finances et approvisionnements ?</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div class="ai-typing-indicator" id="aiTypingIndicator" style="display: none;">
+      <div class="ai-typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <span class="ai-typing-text">AI Data Analyst analyse les données et calcule...</span>
+    </div>
+
+    <!-- Chat Input Form -->
+    <form class="ai-chat-form" id="aiChatForm" onsubmit="handleAiChatSubmit(event)">
+      <div class="ai-input-wrap">
+        <textarea id="aiChatInput" rows="1" placeholder="Posez une question sur vos factures, BC, fournisseurs, audits..." onkeydown="handleAiInputKeydown(event)" autocomplete="off"></textarea>
+        <button type="submit" class="ai-send-btn" id="aiSendBtn" aria-label="Envoyer le message" title="Envoyer (Entrée)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+      <div class="ai-input-footer">
+        <span class="ai-footer-hint">Entrée pour envoyer • Maj+Entrée saut de ligne</span>
+        <span class="ai-footer-badge">🔒 Clé sécurisée serveur</span>
+      </div>
+    </form>
+  </div>
+
+  <!-- ==========================================================================
+       AI SETTINGS & SECURITY CONFIGURATION MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="aiSettingsModal" onclick="closeAiSettingsModal(event)">
+    <div class="modal-dialog ai-settings-dialog" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-heading); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Configuration & Sécurité — AI Data Analyst</span>
+        </h2>
+        <button class="drawer-close" onclick="closeAiSettingsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Security Notice -->
+        <div class="ai-security-banner">
+          <div class="ai-security-icon">🔒</div>
+          <div>
+            <strong style="color: var(--accent-emerald);">Protection Anti-fuite GitHub Garantie</strong>
+            <p style="margin: 0.2rem 0 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.35;">
+              La clé API n'est <strong>jamais committée sur GitHub</strong>. Le fichier <code>.env</code> est strictement ignoré par Git, et les requêtes passent par le proxy <code>server.js</code>.
+            </p>
+          </div>
+        </div>
+
+        <!-- Connection Status Item -->
+        <div class="diagnostic-item" style="margin-top: 0.75rem;">
+          <span style="color: var(--text-secondary);">Statut de la clé serveur (.env) :</span>
+          <span class="badge-status" id="aiSettingsEnvStatus">Vérification...</span>
+        </div>
+
+        <!-- API Key Field -->
+        <div class="filter-item" style="margin-top: 0.65rem;">
+          <label class="filter-label" for="aiSettingsApiKey">
+            <span>Clé API Qwen / DashScope</span>
+            <span style="font-size: 0.7rem; color: var(--accent-cyan); font-weight: normal;">(Optionnel si dans .env)</span>
+          </label>
+          <div style="position: relative;">
+            <input type="password" id="aiSettingsApiKey" class="custom-select-btn" style="width: 100%; cursor: text; padding-right: 35px;" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+            <button type="button" onclick="toggleApiKeyVisibility()" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px;" title="Afficher/Masquer">
+              👁️
+            </button>
+          </div>
+          <span style="font-size: 0.72rem; color: var(--text-tertiary);">Vous pouvez modifier ou renouveler la clé ici à tout moment sans toucher au code.</span>
+        </div>
+
+        <!-- Base URL -->
+        <div class="filter-item" style="margin-top: 0.65rem;">
+          <label class="filter-label" for="aiSettingsBaseUrl">Point de terminaison (Endpoint compatible OpenAI)</label>
+          <input type="text" id="aiSettingsBaseUrl" class="custom-select-btn" style="width: 100%; cursor: text; font-family: var(--font-mono); font-size: 0.75rem;" value="https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1">
+        </div>
+
+        <!-- Model Selection -->
+        <div class="filter-item" style="margin-top: 0.65rem;">
+          <label class="filter-label" for="aiSettingsModel">Modèle Qwen</label>
+          <select id="aiSettingsModel" class="custom-select-btn" style="width: 100%; cursor: pointer;">
+            <option value="qwen-plus" selected>Qwen Plus (Recommandé — Équilibré & Raisonnement)</option>
+            <option value="qwen-turbo">Qwen Turbo (Ultra Rapide)</option>
+            <option value="qwen-max">Qwen Max (Précision Maximale)</option>
+          </select>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+          <button class="btn-secondary" style="flex: 1; justify-content: center;" onclick="testAiConnection()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            <span>Tester la Connexion</span>
+          </button>
+          <button class="btn-gsheet-direct" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);" onclick="saveAiSettings()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            <span>Enregistrer</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js?v=2.4.0"></script>
+</body>
+</html>
