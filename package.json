@@ -1,0 +1,16 @@
+{
+  "name": "procurement-dashboard-v2",
+  "version": "2.0.0",
+  "description": "AIFORCE AGENCY — Plateforme Exécutive des Approvisionnements & Comptabilité Fournisseurs 2.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "undici": "^6.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
