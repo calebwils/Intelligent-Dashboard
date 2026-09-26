@@ -3020,18 +3020,309 @@ body.is-fullscreen #fullscreenToggleBtn {
   font-size: 1.25rem;
 }
 
-/* Responsive adjustment for Mobile screens */
+/* ==========================================================================
+   MOBILE & RESPONSIVE DESIGN SYSTEM (PHONES, TABLETS & COMPACT SCREENS)
+   ========================================================================== */
+
+/* Universal Anti-Overflow Constraints */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.app-main, .tab-panel, .global-filter-card, .chart-card {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.table-responsive, .sheets-scroll-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+/* 1. Medium Tablets & Laptops (max-width: 1024px) */
+@media (max-width: 1024px) {
+  .global-filter-controls {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .charts-row-dual, .charts-row-triple {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+}
+
+/* 2. Tablets & Mobile Landscape (max-width: 860px) */
+@media (max-width: 860px) {
+  .header-inner {
+    padding: 0.5rem 0.85rem;
+    gap: 0.5rem;
+  }
+
+  .header-top-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .brand-group {
+    gap: 0.6rem;
+  }
+
+  .brand-logo-img {
+    height: 34px;
+  }
+
+  .brand-title {
+    font-size: 1rem;
+  }
+
+  .brand-sub {
+    font-size: 0.68rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .header-top-right {
+    gap: 0.4rem;
+  }
+
+  .sync-pill {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.74rem;
+    gap: 0.4rem;
+  }
+
+  .header-nav-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .nav-tabs {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0.25rem;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .nav-tab-btn {
+    flex-shrink: 0;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.76rem;
+  }
+
+  .header-action-tools {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .btn-gsheet-direct {
+    flex: 1;
+    justify-content: center;
+    padding: 0.42rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .currency-picker {
+    flex-shrink: 0;
+  }
+}
+
+/* 3. Smartphones & Mobile Portrait (max-width: 768px) */
+@media (max-width: 768px) {
+  .app-main {
+    padding: 0.75rem;
+    gap: 1rem;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .global-filter-card {
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .global-filter-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .filter-header-title {
+    font-size: 0.85rem;
+  }
+
+  .filter-header-desc {
+    font-size: 0.72rem;
+  }
+
+  .global-filter-controls {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.65rem !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.65rem !important;
+  }
+
+  .kpi-card {
+    padding: 0.85rem 0.75rem !important;
+  }
+
+  .kpi-title {
+    font-size: 0.8rem !important;
+  }
+
+  .kpi-val {
+    font-size: 1.2rem !important;
+  }
+
+  .kpi-footer {
+    font-size: 0.65rem !important;
+  }
+
+  .chart-card {
+    padding: 1rem 0.85rem;
+    gap: 0.75rem;
+  }
+
+  .chart-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .section-title {
+    font-size: 0.92rem;
+  }
+
+  .section-subtitle {
+    font-size: 0.72rem;
+  }
+
+  .chart-toggle-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .chart-toggle-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .chart-canvas-wrap {
+    height: 240px !important;
+    max-height: 260px;
+    width: 100%;
+  }
+
+  .table-responsive {
+    margin: 0 -0.25rem;
+  }
+
+  .ledger-table th, .ledger-table td {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .process-steps-track {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+}
+
+/* 4. Compact Smartphones (max-width: 480px) */
+@media (max-width: 480px) {
+  .global-filter-controls {
+    grid-template-columns: 1fr !important;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.55rem !important;
+  }
+
+  .brand-sub {
+    display: none;
+  }
+
+  #headerSyncText {
+    display: none;
+  }
+
+  .sync-pill {
+    padding: 0.35rem 0.55rem;
+  }
+
+  .brand-title {
+    font-size: 0.92rem;
+  }
+
+  .brand-logo-img {
+    height: 28px;
+  }
+}
+
+/* 5. Mobile AI Chatbot & Floating Widget (max-width: 640px) */
 @media (max-width: 640px) {
   .ai-chatbot-window {
-    width: calc(100vw - 20px);
-    height: calc(100vh - 80px);
-    right: 10px;
-    bottom: 74px;
-    border-radius: 12px;
+    width: calc(100vw - 16px) !important;
+    height: calc(100vh - 85px) !important;
+    max-height: calc(100vh - 85px) !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 72px !important;
+    border-radius: 14px !important;
   }
+
   .ai-floating-trigger {
-    bottom: 16px;
-    right: 16px;
-    padding: 0.45rem 0.85rem 0.45rem 0.55rem;
+    bottom: 14px !important;
+    right: 14px !important;
+    padding: 0.4rem 0.75rem 0.4rem 0.5rem !important;
+  }
+
+  .ai-chat-header {
+    padding: 0.75rem 0.85rem !important;
+  }
+
+  .ai-header-titles .ai-title {
+    font-size: 0.88rem !important;
+  }
+
+  .ai-chat-messages {
+    padding: 0.85rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .ai-message {
+    max-width: 94% !important;
+    font-size: 0.82rem !important;
+  }
+
+  .ai-chat-footer {
+    padding: 0.65rem 0.85rem 0.85rem !important;
+  }
+
+  .ai-settings-dialog {
+    max-width: calc(100vw - 24px) !important;
+    margin: auto 12px !important;
   }
 }
