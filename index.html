@@ -1851,6 +1851,7 @@
 
     <!-- Quick Prompts Chips -->
     <div class="ai-quick-prompts-tray" id="aiQuickPrompts">
+      <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">📧 Audit complet & envoi par mail</button>
       <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">📊 Synthèse des impayés</button>
       <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">🏢 Top 5 fournisseurs</button>
       <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">🚨 Alertes surfacturation</button>
@@ -1955,6 +1956,26 @@
             <option value="qwen-plus">Qwen Plus (Standard)</option>
             <option value="qwen-turbo">Qwen Turbo</option>
           </select>
+        </div>
+
+        <!-- Passerelle Email Gmail SMTP -->
+        <div class="filter-item" style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+          <label class="filter-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span style="display: flex; align-items: center; gap: 0.4rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              <span>Expédition d'Analyses par Email (Gmail SMTP)</span>
+            </span>
+            <span class="badge-status" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.68rem; padding: 2px 8px; border-radius: 4px;">Actif (calebwils900@gmail.com)</span>
+          </label>
+          <span style="font-size: 0.72rem; color: var(--text-tertiary); display: block; margin-bottom: 0.4rem;">
+            L'IA peut expédier directement ses rapports d'audit au format HTML exécutif d'un simple mot ou clic.
+          </span>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="email" id="aiSettingsRecipientEmail" class="custom-select-btn" style="flex: 1; cursor: text; font-size: 0.78rem;" placeholder="procure.test.ai@gmail.com" value="procure.test.ai@gmail.com">
+            <button type="button" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="testAiEmailSend()" title="Envoyer un rapport de test">
+              ✉️ Tester Envoi
+            </button>
+          </div>
         </div>
 
         <!-- Action Buttons -->

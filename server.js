@@ -219,7 +219,35 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ========================================================================
-  // ROUTE 3 : Serveur de fichiers statiques (Dashboard V2)
+  // ROUTE 3 : POST /api/send-email (Expédition d'emails d'audit et analyses)
+  // ========================================================================
+  if (req.method === 'POST' && pathname === '/api/send-email') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        req.body = body ? JSON.parse(body) : {};
+      } catch (e) {
+        req.body = {};
+      }
+
+      try {
+        const sendEmailHandler = require('./api/send-email.js');
+        await sendEmailHandler(req, res);
+      } catch (err) {
+        console.error('❌ Erreur route send-email:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          error: 'SEND_EMAIL_ROUTE_ERROR',
+          message: err.message
+        }));
+      }
+    });
+    return;
+  }
+
+  // ========================================================================
+  // ROUTE 4 : Serveur de fichiers statiques (Dashboard V2)
   // ========================================================================
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
 
@@ -262,6 +290,7 @@ server.listen(PORT, () => {
   console.log('====================================================================');
   console.log(`🚀 AIFORCE AGENCY Dashboard V2 en direct sur : http://localhost:${PORT}`);
   console.log(`🤖 Passerelle IA Qwen active sur : http://localhost:${PORT}/api/chat`);
-  console.log(`🔒 Clé API protégée via .env (ignorée par Git)`);
+  console.log(`📧 Passerelle Email Gmail active sur : http://localhost:${PORT}/api/send-email`);
+  console.log(`🔒 Clé API & SMTP protégés via .env (ignorés par Git)`);
   console.log('====================================================================');
 });

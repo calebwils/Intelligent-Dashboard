@@ -3922,7 +3922,7 @@ function handleAiInputKeydown(e) {
 
 function appendAiMessage(role, rawContent) {
   const container = document.getElementById('aiChatMessages');
-  if (!container) return;
+  if (!container) return null;
 
   const msgDiv = document.createElement('div');
   msgDiv.className = `ai-message ai-message-${role}`;
@@ -3937,17 +3937,58 @@ function appendAiMessage(role, rawContent) {
 
   const contentDiv = document.createElement('div');
   contentDiv.className = 'ai-message-content';
-  contentDiv.innerHTML = role === 'assistant' ? renderAiMarkdown(rawContent) : `<p>${escapeHtml(rawContent).replace(/\n/g, '<br>')}</p>`;
+
+  if (role === 'assistant') {
+    contentDiv.innerHTML = renderAiMarkdown(rawContent);
+
+    // Barre d'actions sous chaque réponse de l'analyste
+    const footerDiv = document.createElement('div');
+    footerDiv.className = 'ai-message-footer';
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'ai-msg-actions';
+
+    // Bouton d'expédition par email
+    const emailBtn = document.createElement('button');
+    emailBtn.type = 'button';
+    emailBtn.className = 'ai-action-btn';
+    emailBtn.title = 'Expédier ce rapport d\'analyse par email';
+    emailBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+      <span>Envoyer par mail</span>
+    `;
+    emailBtn.onclick = () => promptSendAnalysisEmail(rawContent, msgDiv);
+
+    // Bouton de copie
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'ai-action-btn';
+    copyBtn.title = 'Copier l\'analyse dans le presse-papier';
+    copyBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span>Copier</span>
+    `;
+    copyBtn.onclick = () => copyAiTextToClipboard(rawContent, copyBtn);
+
+    actionsDiv.appendChild(emailBtn);
+    actionsDiv.appendChild(copyBtn);
+    footerDiv.appendChild(actionsDiv);
+
+    contentDiv.appendChild(footerDiv);
+  } else {
+    contentDiv.innerHTML = `<p>${escapeHtml(rawContent).replace(/\n/g, '<br>')}</p>`;
+  }
 
   msgDiv.appendChild(avatar);
   msgDiv.appendChild(contentDiv);
   container.appendChild(msgDiv);
 
   container.scrollTop = container.scrollHeight;
+  return msgDiv;
 }
 
 /**
- * 5. Soumission et Appel Sécurisé à l'IA Qwen
+ * 5. Soumission et Appel Sécurisé à l'IA Qwen avec Détection d'Envoi d'Email
  */
 async function handleAiChatSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
@@ -3989,6 +4030,15 @@ Ton champ d'intervention est STRICTEMENT et EXCLUSIVEMENT limité aux données d
 Si l'utilisateur te pose une question portant sur un sujet externe (par exemple de la politique, des personnalités comme Donald Trump, de l'actualité mondiale, du divertissement, de la programmation générale, de la culture générale, etc.), tu DOIS STRICTEMENT REFUSER de répondre en formulant poliment mais fermement la réponse suivante :
 "Je ne réponds pas à de telles questions. En tant qu'AI Data Analyst de la plateforme d'Approvisionnements & Comptabilité Fournisseurs, mon rôle est strictement limité à l'analyse des données financières, des bons de commande, des factures et des audits de l'entreprise. Comment puis-je vous aider sur vos données d'achats ?"
 Ne déroge jamais à cette consigne, sous aucun prétexte.
+
+=== CAPACITÉ D'EXPÉDITION D'ANALYSES ET DE RAPPORTS PAR EMAIL ===
+Tu disposes d'un outil officiel et automatisé d'expédition de courriels d'audit relié à la passerelle Gmail SMTP de l'entreprise (expéditeur certifié : calebwils900@gmail.com).
+Si l'utilisateur te demande d'envoyer, de transmettre ou d'expédier son analyse, un rapport, une synthèse ou un audit par email/mail (par exemple : "envoie-moi ça par mail", "envoie le rapport d'audit à procure.test.ai@gmail.com", "transmets cette analyse par courriel") :
+1. Rédige ton analyse exécutive complète, détaillée, chiffrée et rigoureuse comme d'habitude.
+2. Identifie l'adresse de réception : utilise l'adresse explicitement mentionnée par l'utilisateur, ou à défaut l'adresse officielle de test "procure.test.ai@gmail.com".
+3. À la toute fin de ta réponse, insère la balise d'action d'expédition suivante sur sa propre ligne :
+[ACTION_SEND_EMAIL: {"to": "procure.test.ai@gmail.com", "subject": "📊 [AIFORCE AGENCY] Rapport Exécutif d'Analyse Financière", "title": "Rapport d'Analyse Financière"}]
+Le système frontal prendra immédiatement en charge l'expédition automatique du courriel complet vers cette adresse.
 
 === DIRECTIVES D'ANALYSE & DE CALCUL ===
 1. Exactitude Mathématique : Effectue les calculs avec rigueur (sommes, moyennes, pourcentages, écarts budgétaires, délais). Base-toi strictement sur les données ci-dessous.
@@ -4048,11 +4098,41 @@ ${enterpriseContext}`;
 
     const reply = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : "Désolé, aucune réponse générée.";
 
-    appendAiMessage('assistant', reply);
+    // Détection de l'action d'envoi d'email
+    let cleanReply = reply;
+    let emailAction = null;
+    const emailMatch = reply.match(/\[ACTION_SEND_EMAIL:\s*(\{.*?\})\s*\]/s);
+
+    if (emailMatch) {
+      try {
+        emailAction = JSON.parse(emailMatch[1]);
+        cleanReply = reply.replace(emailMatch[0], '').trim();
+      } catch (e) {
+        console.warn('Erreur lors du décodage de ACTION_SEND_EMAIL:', e);
+      }
+    }
+
+    // Détection de secours : si l'utilisateur demandait explicitement un email et que l'IA a oublié le tag
+    if (!emailAction && (/\b(mail|email|courriel)\b/i.test(userText) && /\b(envoi|envoyer|transmets|transmettre|envoie)\b/i.test(userText))) {
+      const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+      const foundEmail = userText.match(emailRegex);
+      emailAction = {
+        to: foundEmail ? foundEmail[1] : 'procure.test.ai@gmail.com',
+        subject: "📊 [AIFORCE AGENCY] Rapport Exécutif d'Analyse Financière",
+        title: "Rapport d'Analyse Exécutive"
+      };
+    }
+
+    const msgElement = appendAiMessage('assistant', cleanReply);
+
+    // Déclenchement automatique de l'envoi d'email si demandé
+    if (emailAction && msgElement) {
+      executeAiEmailSend(emailAction, cleanReply, msgElement);
+    }
 
     // Sauvegarde dans l'historique
     state.ai.history.push({ role: 'user', content: userText });
-    state.ai.history.push({ role: 'assistant', content: reply });
+    state.ai.history.push({ role: 'assistant', content: cleanReply });
 
   } catch (err) {
     console.error('Erreur chat AI:', err);
@@ -4070,6 +4150,126 @@ ${enterpriseContext}`;
 }
 
 /**
+ * 5.1 Fonctions d'Expédition d'Email et Utilitaires
+ */
+async function executeAiEmailSend(actionData, analysisText, msgElement) {
+  const recipient = (actionData.to || '').trim() || localStorage.getItem('aiforce_recipient_email') || 'procure.test.ai@gmail.com';
+  const subject = actionData.subject || "📊 [AIFORCE AGENCY] Rapport d'Audit & Analyse Financière";
+  const title = actionData.title || "Rapport d'Analyse Financière";
+
+  const footer = msgElement?.querySelector('.ai-message-footer');
+  let statusPill = null;
+  if (footer) {
+    statusPill = document.createElement('div');
+    statusPill.className = 'ai-email-status-pill sending';
+    statusPill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ai-spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+      <span>Expédition email en cours vers ${escapeHtml(recipient)}...</span>
+    `;
+    footer.appendChild(statusPill);
+  }
+
+  showToast(`Expédition du rapport d'analyse vers ${recipient}...`, 'info');
+
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: recipient,
+        subject: subject,
+        title: title,
+        textContent: analysisText,
+        htmlContent: renderAiMarkdown(analysisText)
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (statusPill) {
+        statusPill.className = 'ai-email-status-pill success';
+        statusPill.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>Expédié avec succès par email à <strong>${escapeHtml(data.recipient)}</strong></span>
+        `;
+      }
+      showToast(`✉️ Rapport d'analyse transmis avec succès à ${data.recipient} !`, 'success');
+    } else {
+      throw new Error(data.message || 'Erreur lors de l\'envoi');
+    }
+  } catch (err) {
+    console.error('Échec expédition email:', err);
+    if (statusPill) {
+      statusPill.className = 'ai-email-status-pill error';
+      statusPill.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+        <span>Échec expédition email (${escapeHtml(err.message)})</span>
+      `;
+    }
+    showToast(`Erreur d'envoi par email : ${err.message}`, 'error');
+  }
+}
+
+async function promptSendAnalysisEmail(analysisText, msgElement) {
+  const currentDefault = localStorage.getItem('aiforce_recipient_email') || 'procure.test.ai@gmail.com';
+  const recipient = prompt("À quelle adresse email souhaitez-vous expédier cette analyse ?", currentDefault);
+  if (!recipient || !recipient.trim()) return;
+
+  const cleanRecipient = recipient.trim();
+  localStorage.setItem('aiforce_recipient_email', cleanRecipient);
+
+  await executeAiEmailSend({
+    to: cleanRecipient,
+    subject: "📊 [AIFORCE AGENCY] Analyse Exécutive des Approvisionnements",
+    title: "Analyse Approvisionnements & Comptabilité Fournisseurs"
+  }, analysisText, msgElement);
+}
+
+function copyAiTextToClipboard(text, btnEl) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('Analyse copiée dans le presse-papier', 'success');
+      if (btnEl) {
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = `<span>Copié ✓</span>`;
+        setTimeout(() => { btnEl.innerHTML = orig; }, 1800);
+      }
+    }).catch(() => {
+      showToast('Impossible de copier automatiquement', 'warning');
+    });
+  }
+}
+
+async function testAiEmailSend() {
+  const input = document.getElementById('aiSettingsRecipientEmail');
+  const recipient = (input ? input.value.trim() : '') || 'procure.test.ai@gmail.com';
+
+  showToast(`Expédition d'un rapport de test à ${recipient}...`, 'info');
+
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: recipient,
+        subject: "📊 [AIFORCE AGENCY] Test de Connectivité Email — AI Data Analyst",
+        title: "Test de Connectivité Réussie",
+        textContent: "Félicitations ! La passerelle Gmail SMTP de votre AI Data Analyst est 100% opérationnelle.\n\nVous pouvez désormais demander à l'IA d'expédier directement ses rapports d'audit et analyses par email."
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`✅ Email de test envoyé avec succès à ${data.recipient} !`, 'success');
+    } else {
+      showToast(`❌ Échec d'envoi : ${data.message || 'Erreur inconnue'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`❌ Erreur réseau : ${err.message}`, 'error');
+  }
+}
+
+/**
  * 6. Modale de Paramètres & Sécurité
  */
 function openAiSettingsModal() {
@@ -4081,6 +4281,9 @@ function openAiSettingsModal() {
   if (inputKey) inputKey.value = state.ai.apiKey || '';
   if (inputUrl) inputUrl.value = state.ai.baseUrl || 'https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
   if (selectModel) selectModel.value = state.ai.model || 'qwen-flash';
+
+  const inputEmail = document.getElementById('aiSettingsRecipientEmail');
+  if (inputEmail) inputEmail.value = localStorage.getItem('aiforce_recipient_email') || 'procure.test.ai@gmail.com';
 
   checkAiServerStatus();
 
@@ -4103,6 +4306,7 @@ function saveAiSettings() {
   const inputKey = document.getElementById('aiSettingsApiKey');
   const inputUrl = document.getElementById('aiSettingsBaseUrl');
   const selectModel = document.getElementById('aiSettingsModel');
+  const inputEmail = document.getElementById('aiSettingsRecipientEmail');
 
   if (inputKey) {
     const val = inputKey.value.trim();
@@ -4123,6 +4327,10 @@ function saveAiSettings() {
   if (selectModel) {
     state.ai.model = selectModel.value;
     localStorage.setItem('aiforce_ai_model', state.ai.model);
+  }
+
+  if (inputEmail && inputEmail.value.trim()) {
+    localStorage.setItem('aiforce_recipient_email', inputEmail.value.trim());
   }
 
   updateAiStatusBadges();
