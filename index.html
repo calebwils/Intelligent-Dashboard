@@ -29,6 +29,8 @@
   <!-- Critical Inlined Filter & KPI Grid Styles (guaranteed immediate styling) -->
   <style>
     .global-filter-card {
+      position: relative;
+      z-index: 50;
       background: var(--bg-surface, #0d1527);
       border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.18));
       border-radius: var(--radius-md, 12px);
@@ -37,6 +39,10 @@
       margin-bottom: 1.5rem;
       backdrop-filter: blur(12px);
       transition: all 0.25s ease;
+    }
+    .global-filter-card:has(.custom-select-box.is-open),
+    .global-filter-card.has-open-select {
+      z-index: 700 !important;
     }
     .global-filter-header {
       display: flex;
@@ -89,6 +95,11 @@
       flex-direction: column;
       gap: 0.35rem;
       position: relative;
+      z-index: 1;
+    }
+    .filter-item:has(.custom-select-box.is-open),
+    .filter-item.is-open {
+      z-index: 750 !important;
     }
     .filter-label {
       display: flex;
@@ -103,6 +114,10 @@
     .custom-select-box {
       position: relative;
       width: 100%;
+      z-index: 1;
+    }
+    .custom-select-box.is-open {
+      z-index: 800 !important;
     }
     .custom-select-btn {
       width: 100%;
@@ -155,10 +170,10 @@
       background: #0B132B;
       border: 1px solid var(--border-medium, rgba(148, 163, 184, 0.25));
       border-radius: var(--radius-sm, 8px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(2, 132, 199, 0.25);
-      max-height: 250px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(2, 132, 199, 0.35);
+      max-height: 280px;
       overflow-y: auto;
-      z-index: 1000;
+      z-index: 1000 !important;
       padding: 0.35rem 0;
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);

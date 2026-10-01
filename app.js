@@ -1642,17 +1642,22 @@ function toggleCustomSelect(field, event) {
   };
   const boxId = idMap[field];
   const box = document.getElementById(boxId);
+  const card = document.getElementById('globalFilterCard');
   if (!box) return;
 
   const isOpen = box.classList.contains('is-open');
   closeAllCustomDropdowns();
   if (!isOpen) {
     box.classList.add('is-open');
+    box.closest('.filter-item')?.classList.add('is-open');
+    if (card) card.classList.add('has-open-select');
   }
 }
 
 function closeAllCustomDropdowns() {
   document.querySelectorAll('.custom-select-box').forEach(b => b.classList.remove('is-open'));
+  document.querySelectorAll('.filter-item').forEach(f => f.classList.remove('is-open'));
+  document.getElementById('globalFilterCard')?.classList.remove('has-open-select');
 }
 
 document.addEventListener('click', (e) => {
