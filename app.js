@@ -52,6 +52,7 @@ const state = {
   theme: localStorage.getItem('aiforce_theme') || 'dark',
   currentTab: 'overview',
   chartMode: 'monthly', // 'monthly' | 'cumulative'
+  focusChartMode: 'vendors', // 'vendors' | 'pos' | 'aging'
   lastSynced: null,
   syncCountdown: CONFIG.syncIntervalSeconds,
   syncTimerId: null,
@@ -872,11 +873,293 @@ function renderDepartmentChart(theme) {
 }
 
 /**
- * Graphique 3 : Balance Âgée & Échéancier
+ * Graphique 3 : Module d'Analyse Ciblée Multi-Vues (Fournisseurs, Bons de Commande, Balance Âgée)
  */
 function renderAgingChart(theme) {
+  renderFocusChart(theme);
+}
+
+function renderFocusChart(theme) {
   const ctx = document.getElementById('agingChart');
   if (!ctx) return;
+
+  if (state.charts.aging) {
+    state.charts.aging.destroy();
+    state.charts.aging = null;
+  }
+
+  const mode = state.focusChartMode || 'vendors';
+  const titleEl = document.getElementById('focusChartTitle');
+  const subtitleEl = document.getElementById('focusChartSubtitle');
+  const iconEl = document.getElementById('focusChartIcon');
+  const rate = CONFIG.rates[state.currentCurrency];
+  const currSymbol = CONFIG.currencySymbols[state.currentCurrency];
+
+  // Synchronisation des boutons d'onglets
+  document.getElementById('btnFocusVendors')?.classList.toggle('active', mode === 'vendors');
+  document.getElementById('btnFocusPOs')?.classList.toggle('active', mode === 'pos');
+  document.getElementById('btnFocusAging')?.classList.toggle('active', mode === 'aging');
+
+  // =========================================================================
+  // VUE 1 : DÉPENSES PAR FOURNISSEUR (TOP VOLUME & RÈGLEMENTS)
+  // =========================================================================
+  if (mode === 'vendors') {
+    if (titleEl) titleEl.textContent = 'Dépenses par Fournisseur (Top Volume)';
+    if (subtitleEl) subtitleEl.textContent = 'Volume financier engagé TTC et montant réglé des principaux prestataires';
+    if (iconEl) {
+      iconEl.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v14M21 7v14M6 10h2M11 10h2M16 10h2M6 14h2M11 14h2M16 14h2M6 18h2M11 18h2M16 18h2M9 3h6v4H9z"/></svg>';
+    }
+
+    const vendorMap = {};
+    let globalTtc = 0;
+
+    state.filteredInvoices.forEach(inv => {
+      const v = inv.vendorName || 'Fournisseur Inconnu';
+      if (!vendorMap[v]) {
+        vendorMap[v] = { name: v, code: inv.vendorCode, totalTtc: 0, paid: 0, outstanding: 0, count: 0 };
+      }
+      const ttc = (inv.valTtc || 0) * rate;
+      const paid = (inv.paidAmount || 0) * rate;
+      const out = (inv.outstanding || 0) * rate;
+
+      vendorMap[v].totalTtc += ttc;
+      vendorMap[v].paid += paid;
+      vendorMap[v].outstanding += out;
+      vendorMap[v].count++;
+      globalTtc += ttc;
+    });
+
+    const sortedVendors = Object.values(vendorMap)
+      .sort((a, b) => b.totalTtc - a.totalTtc)
+      .slice(0, 6);
+
+    const labels = sortedVendors.map(v => v.name.length > 22 ? v.name.slice(0, 20) + '…' : v.name);
+    const fullNames = sortedVendors.map(v => v.name);
+    const paidData = sortedVendors.map(v => v.paid);
+    const outstandingData = sortedVendors.map(v => v.outstanding);
+    const totalsData = sortedVendors.map(v => v.totalTtc);
+    const countsData = sortedVendors.map(v => v.count);
+
+    state.charts.aging = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Montant Réglé',
+            data: paidData,
+            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+            borderRadius: { topLeft: 4, bottomLeft: 4, topRight: 0, bottomRight: 0 },
+            stack: 'spend'
+          },
+          {
+            label: 'Solde Dû',
+            data: outstandingData,
+            backgroundColor: 'rgba(6, 182, 212, 0.85)',
+            borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 4, bottomRight: 4 },
+            stack: 'spend'
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: theme.textColor,
+              boxWidth: 10,
+              font: { family: 'Plus Jakarta Sans', size: 11, weight: '500' }
+            }
+          },
+          tooltip: {
+            backgroundColor: theme.tooltipBg,
+            titleColor: theme.tooltipText,
+            bodyColor: theme.tooltipText,
+            borderColor: theme.tooltipBorder,
+            borderWidth: 1,
+            callbacks: {
+              title: function(items) {
+                const idx = items[0].dataIndex;
+                return fullNames[idx] || items[0].label;
+              },
+              label: function(c) {
+                const val = Math.round(c.raw).toLocaleString('fr-FR');
+                return ` ${c.dataset.label} : ${val} ${currSymbol}`;
+              },
+              footer: function(items) {
+                const idx = items[0].dataIndex;
+                const tot = Math.round(totalsData[idx]).toLocaleString('fr-FR');
+                const pct = globalTtc > 0 ? ((totalsData[idx] / globalTtc) * 100).toFixed(1) : 0;
+                const cnt = countsData[idx];
+                return `Total TTC : ${tot} ${currSymbol} (${pct}% du budget • ${cnt} factures)`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: theme.gridColor },
+            ticks: {
+              color: theme.textColor,
+              font: { family: 'JetBrains Mono', size: 10 },
+              callback: v => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)
+            }
+          },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            ticks: {
+              color: theme.textColor,
+              font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }
+            }
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  // =========================================================================
+  // VUE 2 : SANTÉ & ENGAGEMENTS DES BONS DE COMMANDE (PO)
+  // =========================================================================
+  if (mode === 'pos') {
+    if (titleEl) titleEl.textContent = 'Engagements sur Bons de Commande (Top BC)';
+    if (subtitleEl) subtitleEl.textContent = 'Budget commandé vs facturation réelle et solde restant disponible';
+    if (iconEl) {
+      iconEl.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>';
+    }
+
+    const poMap = {};
+    state.filteredInvoices.forEach(inv => {
+      const po = inv.poNumber || 'SANS_BC';
+      if (!poMap[po]) {
+        poMap[po] = {
+          poNumber: po,
+          vendor: inv.vendorName,
+          poValue: (inv.poValue || 0) * rate,
+          invoicedTtc: 0,
+          paid: 0,
+          status: inv.poStatus || 'En cours'
+        };
+      }
+      poMap[po].invoicedTtc += (inv.valTtc || 0) * rate;
+      poMap[po].paid += (inv.paidAmount || 0) * rate;
+    });
+
+    const sortedPOs = Object.values(poMap)
+      .filter(p => p.poNumber !== 'SANS_BC' && p.poNumber !== 'PO-NON-DEFINI')
+      .sort((a, b) => Math.max(b.poValue, b.invoicedTtc) - Math.max(a.poValue, a.invoicedTtc))
+      .slice(0, 6);
+
+    const labels = sortedPOs.map(p => p.poNumber);
+    const invoicedData = sortedPOs.map(p => p.invoicedTtc);
+    const remainingData = sortedPOs.map(p => Math.max(0, p.poValue - p.invoicedTtc));
+    const isOverInvoiced = sortedPOs.map(p => p.poValue > 0 && p.invoicedTtc > p.poValue);
+
+    state.charts.aging = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Facturé TTC',
+            data: invoicedData,
+            backgroundColor: 'rgba(2, 132, 199, 0.85)',
+            borderRadius: { topLeft: 4, bottomLeft: 4, topRight: 0, bottomRight: 0 },
+            stack: 'poStack'
+          },
+          {
+            label: 'Solde BC Dispo',
+            data: remainingData,
+            backgroundColor: 'rgba(16, 185, 129, 0.65)',
+            borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 4, bottomRight: 4 },
+            stack: 'poStack'
+          }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: theme.textColor,
+              boxWidth: 10,
+              font: { family: 'Plus Jakarta Sans', size: 11, weight: '500' }
+            }
+          },
+          tooltip: {
+            backgroundColor: theme.tooltipBg,
+            titleColor: theme.tooltipText,
+            bodyColor: theme.tooltipText,
+            borderColor: theme.tooltipBorder,
+            borderWidth: 1,
+            callbacks: {
+              title: function(items) {
+                const idx = items[0].dataIndex;
+                const po = sortedPOs[idx];
+                return `${po.poNumber} • ${po.vendor}`;
+              },
+              label: function(c) {
+                const val = Math.round(c.raw).toLocaleString('fr-FR');
+                return ` ${c.dataset.label} : ${val} ${currSymbol}`;
+              },
+              footer: function(items) {
+                const idx = items[0].dataIndex;
+                const po = sortedPOs[idx];
+                const poVal = Math.round(po.poValue).toLocaleString('fr-FR');
+                const ratePct = po.poValue > 0 ? ((po.invoicedTtc / po.poValue) * 100).toFixed(1) : 0;
+                let text = `Valeur initiale BC : ${poVal} ${currSymbol} (Conso : ${ratePct}%)`;
+                if (isOverInvoiced[idx]) {
+                  text += '\n⚠️ ALERTE : Dépassement / Surfacturation sur ce bon de commande !';
+                }
+                return text;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: theme.gridColor },
+            ticks: {
+              color: theme.textColor,
+              font: { family: 'JetBrains Mono', size: 10 },
+              callback: v => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)
+            }
+          },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            ticks: {
+              color: theme.textColor,
+              font: { family: 'JetBrains Mono', size: 11, weight: '600' }
+            }
+          }
+        }
+      }
+    });
+    return;
+  }
+
+  // =========================================================================
+  // VUE 3 : ÉCHÉANCIER & BALANCE ÂGÉE PRÉVISIONNELLE (VUE HISTORIQUE)
+  // =========================================================================
+  if (titleEl) titleEl.textContent = 'Échéancier & Balance Âgée Prévisionnelle';
+  if (subtitleEl) subtitleEl.textContent = "Distribution des créances et dettes par tranche d'ancienneté";
+  if (iconEl) {
+    iconEl.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
+  }
 
   const buckets = {
     '0 - 30 Jours': 0,
@@ -892,14 +1175,12 @@ function renderAgingChart(theme) {
     if (!due) return;
     const diffDays = Math.max(0, Math.floor((now - due) / (1000 * 60 * 60 * 24)));
 
-    const val = inv.outstanding * CONFIG.rates[state.currentCurrency];
+    const val = (inv.outstanding || 0) * rate;
     if (diffDays <= 30) buckets['0 - 30 Jours'] += val;
     else if (diffDays <= 60) buckets['31 - 60 Jours'] += val;
     else if (diffDays <= 90) buckets['61 - 90 Jours'] += val;
     else buckets['> 90 Jours'] += val;
   });
-
-  if (state.charts.aging) state.charts.aging.destroy();
 
   state.charts.aging = new Chart(ctx, {
     type: 'bar',
@@ -909,10 +1190,10 @@ function renderAgingChart(theme) {
         label: 'Encours Restant Dû',
         data: Object.values(buckets),
         backgroundColor: [
-          'rgba(16, 185, 129, 0.8)',
-          'rgba(245, 158, 11, 0.8)',
-          'rgba(239, 68, 68, 0.8)',
-          'rgba(139, 92, 246, 0.8)'
+          'rgba(16, 185, 129, 0.85)',
+          'rgba(245, 158, 11, 0.85)',
+          'rgba(239, 68, 68, 0.85)',
+          'rgba(139, 92, 246, 0.85)'
         ],
         borderRadius: 6
       }]
@@ -930,7 +1211,7 @@ function renderAgingChart(theme) {
           borderWidth: 1,
           callbacks: {
             label: function(c) {
-              return ` Solde dû : ${Math.round(c.raw).toLocaleString('fr-FR')} ${CONFIG.currencySymbols[state.currentCurrency]}`;
+              return ` Solde dû : ${Math.round(c.raw).toLocaleString('fr-FR')} ${currSymbol}`;
             }
           }
         }
@@ -3380,6 +3661,14 @@ function setChartMode(mode) {
   document.getElementById('btnChartMonthly')?.classList.toggle('active', mode === 'monthly');
   document.getElementById('btnChartCumulative')?.classList.toggle('active', mode === 'cumulative');
   renderTrajectoryChart(getChartThemeColors());
+}
+
+function setFocusChartMode(mode) {
+  state.focusChartMode = mode;
+  document.getElementById('btnFocusVendors')?.classList.toggle('active', mode === 'vendors');
+  document.getElementById('btnFocusPOs')?.classList.toggle('active', mode === 'pos');
+  document.getElementById('btnFocusAging')?.classList.toggle('active', mode === 'aging');
+  renderFocusChart(getChartThemeColors());
 }
 
 function setCurrency(curr) {
@@ -5892,6 +6181,8 @@ window.toggleAiChatsDrawer = toggleAiChatsDrawer;
 window.renderAiChatsDrawer = renderAiChatsDrawer;
 window.renderAiChatsTabs = renderAiChatsTabs;
 window.renderActiveChatMessages = renderActiveChatMessages;
+window.setFocusChartMode = setFocusChartMode;
+window.renderFocusChart = renderFocusChart;
 
 // Exportations pour la Base Documentaire & Pièces Jointes
 window.triggerAiFileUpload = triggerAiFileUpload;
