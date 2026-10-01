@@ -108,12 +108,16 @@ const state = {
   ai: {
     isOpen: false,
     isThinking: false,
+    isExpanded: false,
     model: (localStorage.getItem('aiforce_ai_model') && localStorage.getItem('aiforce_ai_model') !== 'qwen-plus')
       ? localStorage.getItem('aiforce_ai_model')
       : 'qwen-flash',
     baseUrl: localStorage.getItem('aiforce_ai_base_url') || 'https://ws-hrpprn3nx2citb4c.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
     apiKey: localStorage.getItem('aiforce_ai_key') || '',
     hasServerKey: false,
+    chats: [],
+    activeChatId: null,
+    editingChatId: null,
     history: []
   }
 };
@@ -1112,17 +1116,14 @@ function renderMasterLedgerTable() {
         <td style="font-weight: 700; color: var(--text-primary); font-family: var(--font-mono);">
           <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
             <span>${inv.invoiceNo}</span>
-            <button class="btn-expand-row" onclick="event.stopPropagation(); toggleRowExpand('${inv.sn}')" id="btnExpand-${inv.sn}" title="Déplier toutes les 54 colonnes de cette facture">
-              ▼ 54 Col.
-            </button>
             ${inv.overInvoiced ? '<span class="pill-alert" title="Alerte Surfacturation BC">⚠️</span>' : ''}
           </div>
         </td>
         <td class="mono-val">${formatDateFr(inv.invoiceDate)}</td>
         <td style="font-weight: 600;">${escapeHtml(inv.vendorName)}</td>
         <td class="mono-val" style="color: var(--accent-cyan); font-weight: 600;">${inv.poNumber}</td>
-        <td><span class="dept-badge" onclick="event.stopPropagation(); filterBySpecificDept('${escapeHtml(inv.department)}')" style="cursor: pointer;" title="Filtrer par ce département">${escapeHtml(inv.department)}</span></td>
-        <td><span class="badge-cycle" style="font-size: 0.72rem; cursor: pointer;" onclick="event.stopPropagation(); handleGlobalFilterChange('costCenter', '${escapeHtml(inv.costCenter)}')" title="Filtrer par ce centre">${escapeHtml(inv.costCenter || 'CC-0000')}</span></td>
+        <td><span style="font-weight: 500; color: var(--text-secondary); cursor: pointer;" onclick="event.stopPropagation(); filterBySpecificDept('${escapeHtml(inv.department)}')" title="Filtrer par ce département">${escapeHtml(inv.department || '-')}</span></td>
+        <td><span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary); cursor: pointer;" onclick="event.stopPropagation(); handleGlobalFilterChange('costCenter', '${escapeHtml(inv.costCenter)}')" title="Filtrer par ce centre">${escapeHtml(inv.costCenter || '-')}</span></td>
         <td><span class="mono-val" style="font-size: 0.75rem; color: var(--text-secondary); cursor: pointer;" onclick="event.stopPropagation(); handleGlobalFilterChange('requester', '${escapeHtml(inv.requester)}')" title="Filtrer par ce demandeur">${escapeHtml(inv.requester || '-')}</span></td>
         <td><span style="font-size: 0.75rem; color: var(--text-tertiary); max-width: 140px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(inv.workDesc)}">${escapeHtml(inv.workDesc || '-')}</span></td>
         <td style="text-align: right; font-weight: 700;" class="mono-val">${formatCurrency(inv.valTtc)}</td>
@@ -1715,8 +1716,8 @@ function renderOverviewDeptTable() {
         </td>
         <td>
           <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
-            ${Array.from(d.costCenters).slice(0, 3).map(cc => `<span class="badge-cycle">${escapeHtml(cc)}</span>`).join('')}
-            ${d.costCenters.size > 3 ? `<span class="badge-cycle">+${d.costCenters.size - 3}</span>` : ''}
+            ${Array.from(d.costCenters).slice(0, 3).map(cc => `<span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(cc)}</span>`).join(', ')}
+            ${d.costCenters.size > 3 ? `<span class="mono-val" style="font-size: 0.75rem; color: var(--text-tertiary);">+${d.costCenters.size - 3}</span>` : ''}
           </div>
         </td>
         <td style="text-align: center;" class="mono-val">${d.invoicesCount}</td>
@@ -1867,8 +1868,8 @@ function renderFullSheetsTable() {
       <td style="text-align: right;" class="mono-val">${formatCurrency(r.valVat)}</td>
       <td style="text-align: right; font-weight: 800;" class="mono-val">${formatCurrency(r.valTtc)}</td>
       <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(r.workDesc)}">${escapeHtml(r.workDesc || '-')}</td>
-      <td><span class="dept-badge">${escapeHtml(r.department)}</span></td>
-      <td><span class="badge-cycle">${escapeHtml(r.costCenter)}</span></td>
+      <td><span style="font-weight: 500; color: var(--text-secondary);">${escapeHtml(r.department || '-')}</span></td>
+      <td><span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(r.costCenter || '-')}</span></td>
       <td class="mono-val" style="font-size: 0.75rem;">${escapeHtml(r.requester)}</td>
       <td>${escapeHtml(r.paymentType)}</td>
       <td class="mono-val">${escapeHtml(r.paymentTerms)}</td>
@@ -2438,7 +2439,7 @@ function renderPoCards() {
           <span class="vendor-link-name" onclick="filterLedgerByVendor('${escapeHtml(p.vendorName)}')">${escapeHtml(p.vendorName)}</span>
         </td>
         <td>
-          <span class="dept-badge" onclick="filterLedgerByDept('${escapeHtml(p.department)}')" style="cursor: pointer;" title="Filtrer le Grand Livre par ce département">${escapeHtml(p.department || 'Non spécifié')}</span>
+          <span style="font-weight: 500; color: var(--text-secondary); cursor: pointer;" onclick="filterLedgerByDept('${escapeHtml(p.department)}')" title="Filtrer le Grand Livre par ce département">${escapeHtml(p.department || 'Non spécifié')}</span>
         </td>
         <td>
           <span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary); cursor: pointer;" onclick="filterLedgerByCostCenter('${escapeHtml(p.costCenter)}')" title="Filtrer le Grand Livre par ce centre">${escapeHtml(p.costCenter || '-')}</span>
@@ -2985,8 +2986,8 @@ function renderAnalyticsActiveTable() {
           <span style="font-weight: 700; cursor: pointer; color: var(--accent-cyan);" onclick="filterLedgerByDept('${escapeHtml(d.name)}')" title="Cliquer pour filtrer dans le Grand Livre">${escapeHtml(d.name)}</span>
         </td>
         <td>
-          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-            ${d.costCentersList.map(cc => `<span class="badge-cycle" style="cursor: pointer;" onclick="filterLedgerByCostCenter('${escapeHtml(cc)}')" title="Filtrer par ${escapeHtml(cc)}">${escapeHtml(cc)}</span>`).join('') || '<span style="color: var(--text-tertiary);">-</span>'}
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            ${d.costCentersList.map(cc => `<span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary); cursor: pointer;" onclick="filterLedgerByCostCenter('${escapeHtml(cc)}')" title="Filtrer par ${escapeHtml(cc)}">${escapeHtml(cc)}</span>`).join(', ') || '<span style="color: var(--text-tertiary);">-</span>'}
           </div>
         </td>
         <td style="text-align: center;" class="mono-val">${d.invoicesCount}</td>
@@ -3147,7 +3148,7 @@ function renderAnalyticsActiveTable() {
           <span style="font-weight: 600;">${escapeHtml(r.department)}</span>
         </td>
         <td>
-          <span class="badge-cycle">${escapeHtml(r.costCenter)}</span>
+          <span class="mono-val" style="font-size: 0.78rem; color: var(--text-secondary);">${escapeHtml(r.costCenter || '-')}</span>
         </td>
         <td style="text-align: center;" class="mono-val">${r.invoicesCount}</td>
         <td style="text-align: right; font-weight: 700;" class="mono-val">${formatCurrency(r.totalTtc)}</td>
@@ -3774,85 +3775,161 @@ function renderAiMarkdown(text) {
 
   let html = text;
 
-  // Échappement anti-XSS des chevrons non formatés
+  // 1. Échappement anti-XSS des chevrons non formatés
   html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  // Blocs de code ```code```
+  // 2. Extraire et préserver les blocs de code ```code```
+  const codeBlocks = [];
   html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
-    return `<pre><code>${p1.trim()}</code></pre>`;
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre class="ai-msg-codeblock"><code>${p1.trim()}</code></pre>`);
+    return `__CODE_BLOCK_${idx}__`;
   });
 
-  // Code inline `code`
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // 3. Extraire et préserver le code inline `code`
+  const inlineCodes = [];
+  html = html.replace(/`([^`]+)`/g, (match, p1) => {
+    const idx = inlineCodes.length;
+    inlineCodes.push(`<code>${p1}</code>`);
+    return `__INLINE_CODE_${idx}__`;
+  });
 
-  // Tables Markdown (| col1 | col2 |)
+  // 4. Parser les tables Markdown (| col1 | col2 |)
   const lines = html.split('\n');
   let inTable = false;
-  let tableHtml = '';
+  let tableHeaders = [];
+  let tableRows = [];
   const processedLines = [];
+
+  const flushTable = () => {
+    if (!inTable) return;
+    let cardHtml = '<div class="ai-table-card">';
+    cardHtml += '<div class="ai-table-toolbar">';
+    cardHtml += '<div class="ai-table-title">';
+    cardHtml += '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>';
+    cardHtml += '<span>Tableau des Données</span>';
+    cardHtml += '</div>';
+    cardHtml += '<button type="button" class="ai-table-copy-btn" onclick="copyAiTableToClipboard(this)" title="Copier le tableau pour Excel (toutes colonnes préservées)">';
+    cardHtml += '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    cardHtml += '<span>Copier pour Excel</span>';
+    cardHtml += '</button>';
+    cardHtml += '</div>';
+    cardHtml += '<div class="table-wrap"><table class="ai-chat-table">';
+
+    if (tableHeaders.length > 0) {
+      cardHtml += '<thead><tr>';
+      tableHeaders.forEach(th => {
+        let cleanTh = th.trim();
+        cleanTh = cleanTh.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        cleanTh = cleanTh.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        cardHtml += `<th>${cleanTh}</th>`;
+      });
+      cardHtml += '</tr></thead>';
+    }
+
+    cardHtml += '<tbody>';
+    tableRows.forEach(row => {
+      cardHtml += '<tr>';
+      row.forEach(td => {
+        let cleanTd = td.trim();
+        cleanTd = cleanTd.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        cleanTd = cleanTd.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        cardHtml += `<td>${cleanTd}</td>`;
+      });
+      cardHtml += '</tr>';
+    });
+    cardHtml += '</tbody></table></div></div>';
+
+    processedLines.push(cardHtml);
+    inTable = false;
+    tableHeaders = [];
+    tableRows = [];
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith('|') && line.endsWith('|')) {
-      if (!inTable) {
-        inTable = true;
-        tableHtml = '<div class="table-wrap"><table><tbody>';
-      }
-      // Séparateur |---|---|
       if (/^\|[-:\s|]+\|$/.test(line)) {
         continue;
       }
       const cells = line.split('|').slice(1, -1);
-      const isHeader = !tableHtml.includes('</th>') && i + 1 < lines.length && /^\|[-:\s|]+\|$/.test(lines[i + 1].trim());
-      
-      tableHtml += '<tr>';
-      cells.forEach(cell => {
-        const tag = isHeader ? 'th' : 'td';
-        tableHtml += `<${tag}>${cell.trim()}</${tag}>`;
-      });
-      tableHtml += '</tr>';
+      if (!inTable) {
+        inTable = true;
+        tableHeaders = cells;
+      } else {
+        tableRows.push(cells);
+      }
     } else {
       if (inTable) {
-        tableHtml += '</tbody></table></div>';
-        processedLines.push(tableHtml);
-        inTable = false;
-        tableHtml = '';
+        flushTable();
       }
       processedLines.push(lines[i]);
     }
   }
   if (inTable) {
-    tableHtml += '</tbody></table></div>';
-    processedLines.push(tableHtml);
+    flushTable();
   }
 
   html = processedLines.join('\n');
 
-  // Gras **texte**
+  // 5. Séparateurs horizontaux ---, ***, ___
+  html = html.replace(/^(?:---|___|\*\*\*)\s*$/gm, '<hr class="ai-msg-hr">');
+
+  // 6. Titres Markdown (# à ######) - élimination stricte des dièses bruts (###)
+  html = html.replace(/^######\s*(.+)$/gm, '<h6 class="ai-msg-h6">$1</h6>');
+  html = html.replace(/^#####\s*(.+)$/gm, '<h5 class="ai-msg-h5">$1</h5>');
+  html = html.replace(/^####\s*(.+)$/gm, '<h4 class="ai-msg-h4">$1</h4>');
+  html = html.replace(/^###\s*(.+)$/gm, '<h3 class="ai-msg-h3">$1</h3>');
+  html = html.replace(/^##\s*(.+)$/gm, '<h2 class="ai-msg-h2">$1</h2>');
+  html = html.replace(/^#\s*(.+)$/gm, '<h1 class="ai-msg-h1">$1</h1>');
+
+  // Sécurité supplémentaire : attraper d'éventuels ### résiduels au début de paragraphes ou lignes
+  html = html.replace(/^#{1,6}\s*(.+)$/gm, '<h3 class="ai-msg-h3">$1</h3>');
+
+  // 7. Gras et Italique
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-  // Italique *texte*
+  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
 
-  // Blockquotes > citation
-  html = html.replace(/^>\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+  // 8. Citations > citation
+  html = html.replace(/^>\s*(.+)$/gm, '<blockquote class="ai-msg-quote">$1</blockquote>');
 
-  // Listes à puces - puce
-  html = html.replace(/(?:^|\n)- (.+)(?=\n|$)/g, '\n<li>$1</li>');
-  html = html.replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>');
-  // Éviter l'imbrication multiple de <ul>
-  html = html.replace(/<\/ul>\s*<ul>/g, '');
+  // 9. Listes ordonnées et à puces
+  html = html.replace(/^\s*[-*•]\s+(.+)$/gm, '<li class="ai-msg-li">$1</li>');
+  html = html.replace(/(<li class="ai-msg-li">[\s\S]*?<\/li>(?:\s*<li class="ai-msg-li">[\s\S]*?<\/li>)*)/g, '<ul class="ai-msg-ul">$1</ul>');
 
-  // Paragraphes
-  const paragraphs = html.split(/\n{2,}/);
-  html = paragraphs.map(p => {
+  // 10. Nettoyage et structuration des paragraphes
+  const rawParagraphs = html.split(/\n{2,}/);
+  html = rawParagraphs.map(p => {
     p = p.trim();
     if (!p) return '';
-    if (p.startsWith('<div class="table-wrap">') || p.startsWith('<ul>') || p.startsWith('<pre>') || p.startsWith('<blockquote>')) {
+    if (
+      p.startsWith('<div class="ai-table-card"') ||
+      p.startsWith('<ul') ||
+      p.startsWith('<ol') ||
+      p.startsWith('<pre') ||
+      p.startsWith('<blockquote') ||
+      p.startsWith('<h1') ||
+      p.startsWith('<h2') ||
+      p.startsWith('<h3') ||
+      p.startsWith('<h4') ||
+      p.startsWith('<h5') ||
+      p.startsWith('<h6') ||
+      p.startsWith('<hr')
+    ) {
       return p;
     }
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   }).join('');
+
+  // 11. Réinsertion des blocs de code et inline code préservés
+  codeBlocks.forEach((cb, idx) => {
+    html = html.replace(`__CODE_BLOCK_${idx}__`, cb);
+  });
+  inlineCodes.forEach((ic, idx) => {
+    html = html.replace(`__INLINE_CODE_${idx}__`, ic);
+  });
 
   return html;
 }
@@ -3872,6 +3949,10 @@ function toggleAiChatbot(forceState) {
     win.classList.add('is-open');
     win.setAttribute('aria-hidden', 'false');
     if (trigger) trigger.style.transform = 'scale(0.95)';
+    // Si les discussions ne sont pas encore initialisées
+    if (!state.ai.chats || state.ai.chats.length === 0) {
+      initAiChats();
+    }
     setTimeout(() => {
       const input = document.getElementById('aiChatInput');
       if (input) input.focus();
@@ -3883,23 +3964,485 @@ function toggleAiChatbot(forceState) {
   }
 }
 
-function clearAiChat() {
-  state.ai.history = [];
+/**
+ * Agrandir / Réduire la fenêtre de discussion IA
+ */
+function toggleAiChatExpand() {
+  const win = document.getElementById('aiChatbotWindow');
+  if (!win) return;
+  state.ai.isExpanded = !state.ai.isExpanded;
+  if (state.ai.isExpanded) {
+    win.classList.add('is-expanded');
+  } else {
+    win.classList.remove('is-expanded');
+  }
+  const expandIcon = document.querySelector('.ai-expand-icon');
+  const compressIcon = document.querySelector('.ai-compress-icon');
+  if (expandIcon && compressIcon) {
+    expandIcon.style.display = state.ai.isExpanded ? 'none' : 'block';
+    compressIcon.style.display = state.ai.isExpanded ? 'block' : 'none';
+  }
+}
+
+// ==========================================================================
+// SYSTÈME MULTI-CHATS — SESSIONS, ONGLETS, RENOMMAGE & SUPPRESSION
+// ==========================================================================
+
+/**
+ * Initialise le système multi-discussions depuis le stockage local ou avec une discussion par défaut
+ */
+function initAiChats() {
+  try {
+    const saved = localStorage.getItem('aiforce_ai_chats');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.ai.chats = parsed.map(c => ({
+          id: c.id || ('chat_' + Date.now()),
+          title: c.title || 'Discussion',
+          createdAt: c.createdAt || Date.now(),
+          updatedAt: c.updatedAt || Date.now(),
+          messages: Array.isArray(c.messages) ? c.messages : []
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Impossible de charger l\'historique des chats depuis localStorage:', e);
+  }
+
+  // Création d'une première discussion si aucune n'existe
+  if (!state.ai.chats || state.ai.chats.length === 0) {
+    const defaultChat = {
+      id: 'chat_' + Date.now(),
+      title: 'Discussion 1',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: []
+    };
+    state.ai.chats = [defaultChat];
+  }
+
+  // Restauration de la discussion active
+  const savedActiveId = localStorage.getItem('aiforce_ai_active_chat');
+  if (savedActiveId && state.ai.chats.some(c => c.id === savedActiveId)) {
+    state.ai.activeChatId = savedActiveId;
+  } else {
+    state.ai.activeChatId = state.ai.chats[0].id;
+  }
+
+  // Synchronisation de l'historique actif
+  const active = getActiveAiChat();
+  state.ai.history = active ? active.messages : [];
+
+  renderAiChatsTabs();
+  renderActiveChatMessages();
+}
+
+/**
+ * Récupère l'objet de discussion actuellement actif
+ */
+function getActiveAiChat() {
+  if (!state.ai.chats || state.ai.chats.length === 0) return null;
+  return state.ai.chats.find(c => c.id === state.ai.activeChatId) || state.ai.chats[0];
+}
+
+/**
+ * Sauvegarde la liste complète des discussions et la discussion active dans localStorage
+ */
+function saveAiChatsToStorage() {
+  try {
+    localStorage.setItem('aiforce_ai_chats', JSON.stringify(state.ai.chats));
+    if (state.ai.activeChatId) {
+      localStorage.setItem('aiforce_ai_active_chat', state.ai.activeChatId);
+    }
+    const active = getActiveAiChat();
+    state.ai.history = active ? active.messages : [];
+  } catch (e) {
+    console.warn('Erreur lors de la sauvegarde des discussions:', e);
+  }
+}
+
+/**
+ * Crée une nouvelle discussion indépendante
+ */
+function createNewAiChat(customTitle) {
+  let maxNum = 0;
+  state.ai.chats.forEach(c => {
+    const m = (c.title || '').match(/^Discussion\s+(\d+)$/i);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  });
+  const nextNum = maxNum + 1;
+  const title = customTitle || `Discussion ${nextNum}`;
+
+  const newChat = {
+    id: 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    title: title,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: []
+  };
+
+  state.ai.chats.push(newChat);
+  state.ai.activeChatId = newChat.id;
+  state.ai.editingChatId = null;
+
+  saveAiChatsToStorage();
+  renderAiChatsTabs();
+  renderActiveChatMessages();
+  toggleAiChatsDrawer(false);
+
+  showToast(`Nouvelle discussion "${newChat.title}" ouverte`, 'success');
+
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) input.focus();
+  }, 100);
+}
+
+/**
+ * Bascule vers une discussion spécifique
+ */
+function switchAiChat(chatId) {
+  if (state.ai.activeChatId === chatId) return;
+  state.ai.activeChatId = chatId;
+  state.ai.editingChatId = null;
+
+  saveAiChatsToStorage();
+  renderAiChatsTabs();
+  renderActiveChatMessages();
+  toggleAiChatsDrawer(false);
+
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) input.focus();
+  }, 50);
+}
+
+/**
+ * Active le mode édition (renommage) sur un onglet de discussion
+ */
+function startRenameAiChat(chatId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  state.ai.editingChatId = chatId;
+  renderAiChatsTabs();
+
+  setTimeout(() => {
+    const inp = document.getElementById(`aiRenameInput_${chatId}`);
+    if (inp) {
+      inp.focus();
+      inp.select();
+    }
+  }, 50);
+}
+
+/**
+ * Enregistre le nouveau nom de la discussion
+ */
+function saveRenameAiChat(chatId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (state.ai.editingChatId !== chatId) return;
+
+  const inp = document.getElementById(`aiRenameInput_${chatId}`);
+  const chat = state.ai.chats.find(c => c.id === chatId);
+  if (inp && chat) {
+    const val = inp.value.trim();
+    if (val && val !== chat.title) {
+      chat.title = val;
+      chat.updatedAt = Date.now();
+      saveAiChatsToStorage();
+      showToast(`Discussion renommée en "${val}"`, 'success');
+    }
+  }
+
+  state.ai.editingChatId = null;
+  renderAiChatsTabs();
+  renderAiChatsDrawer();
+}
+
+/**
+ * Annule l'édition du nom de discussion
+ */
+function cancelRenameAiChat(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  state.ai.editingChatId = null;
+  renderAiChatsTabs();
+}
+
+/**
+ * Gestion des touches clavier lors du renommage
+ */
+function handleRenameKeydown(chatId, event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveRenameAiChat(chatId, event);
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    cancelRenameAiChat(event);
+  }
+}
+
+/**
+ * Supprime une discussion via son icône corbeille
+ */
+function deleteAiChat(chatId, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  const chat = state.ai.chats.find(c => c.id === chatId);
+  if (!chat) return;
+
+  if (chat.messages && chat.messages.length > 0) {
+    const ok = confirm(`Êtes-vous sûr de vouloir supprimer la discussion "${chat.title}" (${chat.messages.length} messages) ?`);
+    if (!ok) return;
+  }
+
+  const chatIndex = state.ai.chats.findIndex(c => c.id === chatId);
+  if (chatIndex !== -1) {
+    state.ai.chats.splice(chatIndex, 1);
+  }
+
+  // Si toutes les discussions ont été supprimées, on recrée une discussion propre
+  if (state.ai.chats.length === 0) {
+    const freshChat = {
+      id: 'chat_' + Date.now(),
+      title: 'Discussion 1',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: []
+    };
+    state.ai.chats = [freshChat];
+    state.ai.activeChatId = freshChat.id;
+  } else if (state.ai.activeChatId === chatId) {
+    // Si c'était la discussion active, on active la précédente ou la suivante
+    const newIndex = Math.max(0, chatIndex - 1);
+    state.ai.activeChatId = state.ai.chats[newIndex].id;
+  }
+
+  state.ai.editingChatId = null;
+  saveAiChatsToStorage();
+  renderAiChatsTabs();
+  renderActiveChatMessages();
+  renderAiChatsDrawer();
+
+  showToast(`Discussion "${chat.title}" supprimée`, 'info');
+}
+
+/**
+ * Affiche ou masque le tiroir récapitulatif de toutes les discussions
+ */
+function toggleAiChatsDrawer(forceState) {
+  const drawer = document.getElementById('aiChatsDrawer');
+  if (!drawer) return;
+
+  const willOpen = forceState !== undefined ? forceState : drawer.style.display === 'none';
+  drawer.style.display = willOpen ? 'flex' : 'none';
+
+  if (willOpen) {
+    renderAiChatsDrawer();
+  }
+}
+
+/**
+ * Rendu visuel du tiroir des discussions
+ */
+function renderAiChatsDrawer() {
+  const list = document.getElementById('aiDrawerList');
+  if (!list) return;
+
+  const countEl = document.getElementById('aiDrawerCount');
+  if (countEl) countEl.textContent = state.ai.chats.length;
+
+  list.innerHTML = state.ai.chats.map(chat => {
+    const isActive = chat.id === state.ai.activeChatId;
+    const msgCount = chat.messages.length;
+    const dateStr = chat.updatedAt ? new Date(chat.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+    return `
+      <div class="ai-drawer-item ${isActive ? 'active' : ''}" onclick="switchAiChat('${chat.id}')">
+        <div class="ai-drawer-item-left">
+          <span class="ai-drawer-item-pip"></span>
+          <div class="ai-drawer-item-info">
+            <span class="ai-drawer-item-title">${escapeHtml(chat.title)}</span>
+            <span class="ai-drawer-item-meta">${msgCount} message${msgCount > 1 ? 's' : ''} • ${dateStr ? 'Dernière act. ' + dateStr : 'Nouveau'}</span>
+          </div>
+        </div>
+        <div class="ai-drawer-item-actions" onclick="event.stopPropagation()">
+          <button type="button" class="ai-drawer-action-btn btn-rename" onclick="startRenameAiChat('${chat.id}', event)" title="Modifier le nom">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          </button>
+          <button type="button" class="ai-drawer-action-btn btn-delete" onclick="deleteAiChat('${chat.id}', event)" title="Supprimer cette discussion">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Rendu visuel de la barre horizontale des onglets de discussion
+ */
+function renderAiChatsTabs() {
+  const container = document.getElementById('aiChatTabsScroll');
+  if (!container) return;
+
+  const activeChat = getActiveAiChat();
+  if (!activeChat) return;
+
+  // Mise à jour du sous-titre de l'en-tête pour indiquer la discussion courante
+  const subtitle = document.getElementById('aiChatSubtitle');
+  if (subtitle) {
+    subtitle.textContent = `${activeChat.title} • Intelligence Approvisionnements & DAF`;
+  }
+
+  // Compteur d'onglets
+  const countBadge = document.getElementById('aiChatsCountBadge');
+  if (countBadge) {
+    countBadge.textContent = state.ai.chats.length;
+  }
+  const drawerCount = document.getElementById('aiDrawerCount');
+  if (drawerCount) {
+    drawerCount.textContent = state.ai.chats.length;
+  }
+
+  container.innerHTML = state.ai.chats.map(chat => {
+    const isActive = chat.id === state.ai.activeChatId;
+    const isEditing = state.ai.editingChatId === chat.id;
+
+    if (isEditing) {
+      return `
+        <div class="ai-chat-tab active editing" id="aiTab_${chat.id}">
+          <form class="ai-tab-rename-form" onsubmit="saveRenameAiChat('${chat.id}', event)" onclick="event.stopPropagation()">
+            <input type="text" 
+                   class="ai-tab-rename-input" 
+                   id="aiRenameInput_${chat.id}" 
+                   value="${escapeHtml(chat.title)}" 
+                   maxlength="30" 
+                   autocomplete="off" 
+                   onkeydown="handleRenameKeydown('${chat.id}', event)" 
+                   onblur="saveRenameAiChat('${chat.id}', event)">
+            <button type="submit" class="ai-tab-btn btn-save" title="Enregistrer le nom" onmousedown="event.preventDefault()">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button type="button" class="ai-tab-btn btn-cancel" onclick="cancelRenameAiChat(event)" title="Annuler" onmousedown="event.preventDefault()">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="ai-chat-tab ${isActive ? 'active' : ''}" 
+           id="aiTab_${chat.id}" 
+           onclick="switchAiChat('${chat.id}')" 
+           title="${escapeHtml(chat.title)}${chat.messages.length > 0 ? ' (' + chat.messages.length + ' messages)' : ''}">
+        <div class="ai-tab-main">
+          <svg class="ai-tab-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="ai-tab-title">${escapeHtml(chat.title)}</span>
+        </div>
+        <div class="ai-tab-actions" onclick="event.stopPropagation()">
+          <button type="button" 
+                  class="ai-tab-btn btn-rename" 
+                  onclick="startRenameAiChat('${chat.id}', event)" 
+                  title="Modifier le nom de cette discussion">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+          </button>
+          <button type="button" 
+                  class="ai-tab-btn btn-delete" 
+                  onclick="deleteAiChat('${chat.id}', event)" 
+                  title="Supprimer cette discussion">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Défilement automatique pour garder l'onglet actif visible
+  const activeEl = container.querySelector('.ai-chat-tab.active');
+  if (activeEl) {
+    activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }
+}
+
+/**
+ * Affiche tous les messages de la discussion actuellement active
+ */
+function renderActiveChatMessages() {
   const container = document.getElementById('aiChatMessages');
-  if (container) {
+  if (!container) return;
+
+  const activeChat = getActiveAiChat();
+  container.innerHTML = '';
+
+  if (!activeChat || activeChat.messages.length === 0) {
     container.innerHTML = `
       <div class="ai-message ai-message-assistant">
         <div class="ai-message-avatar">
           <img src="assets/ai-logo.png" alt="Logo IA" class="ai-msg-avatar-img">
         </div>
         <div class="ai-message-content">
-          <p>Bonjour ! Je suis votre <strong>AI Data Analyst</strong>.</p>
-          <p>Comment puis-je vous aider aujourd'hui dans l'analyse de vos approvisionnements et finances ?</p>
+          <div class="ai-message-header">
+            <div class="ai-msg-author-info">
+              <span class="ai-msg-name">AI Data Analyst</span>
+              <span class="ai-msg-time">Assistant Exécutif</span>
+            </div>
+          </div>
+          <div class="ai-msg-rendered-body">
+            <p>Bonjour ! Je suis votre <strong>AI Data Analyst</strong>.</p>
+            <p>Comment puis-je vous aider aujourd'hui dans l'analyse de vos approvisionnements et finances ?</p>
+          </div>
         </div>
       </div>
     `;
+  } else {
+    activeChat.messages.forEach(msg => {
+      appendAiMessage(msg.role, msg.content, msg.timestamp);
+    });
   }
-  showToast('Historique de conversation réinitialisé', 'info');
+
+  container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Réinitialise l'historique de la discussion active
+ */
+function clearAiChat() {
+  const activeChat = getActiveAiChat();
+  if (!activeChat) return;
+
+  activeChat.messages = [];
+  activeChat.updatedAt = Date.now();
+  saveAiChatsToStorage();
+
+  renderActiveChatMessages();
+  renderAiChatsTabs();
+  renderAiChatsDrawer();
+
+  showToast(`Historique de "${activeChat.title}" réinitialisé`, 'info');
 }
 
 function handleAiPromptClick(buttonEl) {
@@ -3920,7 +4463,7 @@ function handleAiInputKeydown(e) {
   }
 }
 
-function appendAiMessage(role, rawContent) {
+function appendAiMessage(role, rawContent, timestamp) {
   const container = document.getElementById('aiChatMessages');
   if (!container) return null;
 
@@ -3938,15 +4481,53 @@ function appendAiMessage(role, rawContent) {
   const contentDiv = document.createElement('div');
   contentDiv.className = 'ai-message-content';
 
-  if (role === 'assistant') {
-    contentDiv.innerHTML = renderAiMarkdown(rawContent);
+  const timeFormatted = timestamp 
+    ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Barre d'actions sous chaque réponse de l'analyste
+  if (role === 'assistant') {
+    // 1. En-tête de message IA avec bouton de copie directe supérieure
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'ai-message-header';
+    headerDiv.innerHTML = `
+      <div class="ai-msg-author-info">
+        <span class="ai-msg-name">AI Data Analyst</span>
+        <span class="ai-msg-time">${timeFormatted}</span>
+      </div>
+      <button type="button" class="ai-msg-top-copy-btn" title="Copier l'intégralité de cette analyse">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span>Copier la réponse</span>
+      </button>
+    `;
+    const topCopyBtn = headerDiv.querySelector('.ai-msg-top-copy-btn');
+    if (topCopyBtn) {
+      topCopyBtn.onclick = () => copyAiTextToClipboard(rawContent, topCopyBtn, msgDiv);
+    }
+    contentDiv.appendChild(headerDiv);
+
+    // 2. Corps du message rendu en Markdown
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'ai-msg-rendered-body';
+    bodyDiv.innerHTML = renderAiMarkdown(rawContent);
+    contentDiv.appendChild(bodyDiv);
+
+    // 3. Barre d'actions sous la réponse de l'analyste
     const footerDiv = document.createElement('div');
     footerDiv.className = 'ai-message-footer';
 
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'ai-msg-actions';
+
+    // Bouton de copie complète
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'ai-action-btn ai-action-btn-copy';
+    copyBtn.title = 'Copier toute l\'analyse dans le presse-papier';
+    copyBtn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      <span>Copier toute la réponse</span>
+    `;
+    copyBtn.onclick = () => copyAiTextToClipboard(rawContent, copyBtn, msgDiv);
 
     // Bouton d'expédition par email
     const emailBtn = document.createElement('button');
@@ -3959,19 +4540,8 @@ function appendAiMessage(role, rawContent) {
     `;
     emailBtn.onclick = () => promptSendAnalysisEmail(rawContent, msgDiv);
 
-    // Bouton de copie
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.className = 'ai-action-btn';
-    copyBtn.title = 'Copier l\'analyse dans le presse-papier';
-    copyBtn.innerHTML = `
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-      <span>Copier</span>
-    `;
-    copyBtn.onclick = () => copyAiTextToClipboard(rawContent, copyBtn);
-
-    actionsDiv.appendChild(emailBtn);
     actionsDiv.appendChild(copyBtn);
+    actionsDiv.appendChild(emailBtn);
     footerDiv.appendChild(actionsDiv);
 
     contentDiv.appendChild(footerDiv);
@@ -3999,10 +4569,20 @@ async function handleAiChatSubmit(e) {
   const userText = input.value.trim();
   if (!userText) return;
 
-  // Affichage du message utilisateur
+  const activeChat = getActiveAiChat();
+  if (!activeChat) return;
+  const currentChatId = activeChat.id;
+
+  // Affichage du message utilisateur dans l'interface
   appendAiMessage('user', userText);
   input.value = '';
   input.style.height = 'auto';
+
+  // Enregistrement immédiat dans la discussion courante
+  activeChat.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
+  activeChat.updatedAt = Date.now();
+  saveAiChatsToStorage();
+  renderAiChatsTabs();
 
   // Préparation du statut thinking
   state.ai.isThinking = true;
@@ -4054,8 +4634,8 @@ ${enterpriseContext}`;
     { role: 'system', content: systemPrompt }
   ];
 
-  // Historique récent (derniers 6 tours)
-  const recentHistory = state.ai.history.slice(-6);
+  // Historique récent propre à cette discussion spécifique (derniers 6 tours sans doubler le dernier message)
+  const recentHistory = activeChat.messages.slice(0, -1).slice(-6);
   recentHistory.forEach(h => {
     apiMessages.push({ role: h.role, content: h.content });
   });
@@ -4123,16 +4703,26 @@ ${enterpriseContext}`;
       };
     }
 
-    const msgElement = appendAiMessage('assistant', cleanReply);
-
-    // Déclenchement automatique de l'envoi d'email si demandé
-    if (emailAction && msgElement) {
-      executeAiEmailSend(emailAction, cleanReply, msgElement);
+    // Enregistrement dans la discussion qui a initié la requête
+    const targetChat = state.ai.chats.find(c => c.id === currentChatId);
+    if (targetChat) {
+      targetChat.messages.push({ role: 'assistant', content: cleanReply, timestamp: Date.now() });
+      targetChat.updatedAt = Date.now();
+      saveAiChatsToStorage();
+      renderAiChatsTabs();
     }
 
-    // Sauvegarde dans l'historique
-    state.ai.history.push({ role: 'user', content: userText });
-    state.ai.history.push({ role: 'assistant', content: cleanReply });
+    // Affichage dans l'UI si l'utilisateur est toujours sur cette même discussion
+    if (state.ai.activeChatId === currentChatId) {
+      const msgElement = appendAiMessage('assistant', cleanReply);
+
+      // Déclenchement automatique de l'envoi d'email si demandé
+      if (emailAction && msgElement) {
+        executeAiEmailSend(emailAction, cleanReply, msgElement);
+      }
+    } else {
+      showToast(`Nouvelle analyse prête dans "${targetChat?.title || 'votre discussion'}"`, 'info');
+    }
 
   } catch (err) {
     console.error('Erreur chat AI:', err);
@@ -4225,18 +4815,317 @@ async function promptSendAnalysisEmail(analysisText, msgElement) {
   }, analysisText, msgElement);
 }
 
-function copyAiTextToClipboard(text, btnEl) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('Analyse copiée dans le presse-papier', 'success');
-      if (btnEl) {
-        const orig = btnEl.innerHTML;
-        btnEl.innerHTML = `<span>Copié ✓</span>`;
-        setTimeout(() => { btnEl.innerHTML = orig; }, 1800);
+/**
+ * Copie un tableau Markdown/HTML au format TSV & HTML pour Excel / Google Sheets
+ * Garantit l'intégralité et l'alignement parfait de toutes les colonnes
+ */
+async function copyAiTableToClipboard(btnEl) {
+  if (!btnEl) return;
+  const tableCard = btnEl.closest('.ai-table-card');
+  if (!tableCard) return;
+  const table = tableCard.querySelector('table');
+  if (!table) return;
+
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (!rows.length) return;
+
+  // 1. Génération TSV (Tab-Separated Values) : standard universel de collage multi-colonnes Excel
+  const tsvLines = [];
+  rows.forEach(tr => {
+    const cells = Array.from(tr.querySelectorAll('th, td')).map(cell => {
+      let text = cell.innerText || cell.textContent || '';
+      text = text.replace(/[\r\n]+/g, ' ').trim();
+      if (text.includes('\t') || text.includes('"')) {
+        text = `"${text.replace(/"/g, '""')}"`;
       }
-    }).catch(() => {
-      showToast('Impossible de copier automatiquement', 'warning');
+      return text;
     });
+    tsvLines.push(cells.join('\t'));
+  });
+  const tsvContent = tsvLines.join('\r\n');
+
+  // 2. Génération HTML table pour Excel desktop/web & Google Sheets
+  const htmlContent = `
+    <meta charset="utf-8">
+    <table border="1" style="border-collapse: collapse; font-family: Calibri, Arial, sans-serif; font-size: 11pt;">
+      ${table.innerHTML}
+    </table>
+  `;
+
+  let copied = false;
+  if (navigator.clipboard && window.ClipboardItem) {
+    try {
+      const textBlob = new Blob([tsvContent], { type: 'text/plain' });
+      const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': textBlob,
+          'text/html': htmlBlob
+        })
+      ]);
+      copied = true;
+    } catch (err) {
+      console.warn('ClipboardItem write failed, fallback:', err);
+    }
+  }
+
+  if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(tsvContent);
+      copied = true;
+    } catch (err) {
+      console.warn('writeText failed:', err);
+    }
+  }
+
+  if (!copied) {
+    const ta = document.createElement('textarea');
+    ta.value = tsvContent;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    copied = true;
+  }
+
+  showToast('Tableau copié au format Excel (toutes colonnes préservées) !', 'success');
+
+  const origHtml = btnEl.innerHTML;
+  btnEl.classList.add('is-copied');
+  btnEl.innerHTML = `
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    <span style="color:#10b981; font-weight:700;">Copié pour Excel ✓</span>
+  `;
+  setTimeout(() => {
+    btnEl.classList.remove('is-copied');
+    btnEl.innerHTML = origHtml;
+  }, 2200);
+}
+
+/**
+ * Copie intégrale de la réponse de l'IA (en un seul clic)
+ */
+async function copyAiTextToClipboard(text, btnEl, msgElement) {
+  let plainText = text || '';
+  plainText = plainText.replace(/\[ACTION_SEND_EMAIL:\s*\{.*?\}\s*\]/gs, '').trim();
+
+  // Extraction d'un HTML propre si l'élément de message est fourni
+  let cleanHtml = '';
+  if (msgElement) {
+    const content = msgElement.querySelector('.ai-message-content');
+    if (content) {
+      const clone = content.cloneNode(true);
+      clone.querySelectorAll('.ai-message-header, .ai-message-footer, .ai-table-toolbar, .ai-email-status-pill').forEach(el => el.remove());
+      cleanHtml = clone.innerHTML;
+    }
+  }
+
+  let copied = false;
+  if (navigator.clipboard && window.ClipboardItem && cleanHtml) {
+    try {
+      const textBlob = new Blob([plainText], { type: 'text/plain' });
+      const htmlBlob = new Blob([cleanHtml], { type: 'text/html' });
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/plain': textBlob,
+          'text/html': htmlBlob
+        })
+      ]);
+      copied = true;
+    } catch (e) {
+      console.warn('ClipboardItem error, fallback:', e);
+    }
+  }
+
+  if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(plainText);
+      copied = true;
+    } catch (e) {
+      console.warn('writeText error:', e);
+    }
+  }
+
+  if (!copied) {
+    const ta = document.createElement('textarea');
+    ta.value = plainText;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    copied = true;
+  }
+
+  showToast('Réponse complète de l\'IA copiée dans le presse-papier !', 'success');
+
+  const updateBtn = (btn) => {
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span style="color:#10b981; font-weight:700;">Copié ✓</span>
+    `;
+    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+  };
+
+  if (msgElement) {
+    msgElement.querySelectorAll('.ai-msg-top-copy-btn, .ai-action-btn-copy').forEach(updateBtn);
+  } else if (btnEl) {
+    updateBtn(btnEl);
+  }
+}
+
+/**
+ * Initialisation de la fenêtre de discussion extensible & redimensionnable
+ */
+function initAiChatResizable() {
+  const win = document.getElementById('aiChatbotWindow');
+  const leftHandle = document.getElementById('aiResizeHandleLeft');
+  const topHandle = document.getElementById('aiResizeHandleTop');
+  const cornerHandle = document.getElementById('aiResizeHandleCorner');
+  if (!win) return;
+
+  // Restaurer les dimensions personnalisées si sauvegardées
+  const savedWidth = localStorage.getItem('aiforce_ai_chat_width');
+  const savedHeight = localStorage.getItem('aiforce_ai_chat_height');
+  if (savedWidth && window.innerWidth > 640) {
+    win.style.width = savedWidth;
+  }
+  if (savedHeight && window.innerWidth > 640) {
+    win.style.height = savedHeight;
+  }
+
+  let isResizing = false;
+  let startX = 0;
+  let startY = 0;
+  let startWidth = 0;
+  let startHeight = 0;
+  let resizeMode = ''; // 'left', 'top', 'corner'
+
+  const startResize = (e, mode) => {
+    if (window.innerWidth <= 640) return;
+    if (e.button !== undefined && e.button !== 0) return; // Uniquement clic gauche
+    e.preventDefault();
+    isResizing = true;
+    resizeMode = mode;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    startX = clientX;
+    startY = clientY;
+
+    const rect = win.getBoundingClientRect();
+    startWidth = rect.width;
+    startHeight = rect.height;
+
+    win.classList.remove('is-expanded');
+    win.classList.add('is-resizing');
+    document.body.classList.add('ai-is-resizing');
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', stopResize);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', stopResize);
+  };
+
+  const onMove = (e) => {
+    if (!isResizing) return;
+    if (e.preventDefault) e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    if (resizeMode === 'left' || resizeMode === 'corner') {
+      const deltaX = startX - clientX;
+      const minW = 380;
+      const maxW = Math.min(1100, window.innerWidth - 32);
+      const newWidth = Math.max(minW, Math.min(maxW, startWidth + deltaX));
+      win.style.width = `${newWidth}px`;
+    }
+
+    if (resizeMode === 'top' || resizeMode === 'corner') {
+      const deltaY = startY - clientY;
+      const minH = 420;
+      const maxH = window.innerHeight - 95;
+      const newHeight = Math.max(minH, Math.min(maxH, startHeight + deltaY));
+      win.style.height = `${newHeight}px`;
+    }
+  };
+
+  const stopResize = () => {
+    if (!isResizing) return;
+    isResizing = false;
+    win.classList.remove('is-resizing');
+    document.body.classList.remove('ai-is-resizing');
+
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', stopResize);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('touchend', stopResize);
+
+    if (win.style.width) localStorage.setItem('aiforce_ai_chat_width', win.style.width);
+    if (win.style.height) localStorage.setItem('aiforce_ai_chat_height', win.style.height);
+  };
+
+  if (leftHandle) {
+    leftHandle.addEventListener('mousedown', (e) => startResize(e, 'left'));
+    leftHandle.addEventListener('touchstart', (e) => startResize(e, 'left'), { passive: false });
+    // Double-clic pour basculer facilement entre 460px et 850px
+    leftHandle.addEventListener('dblclick', () => {
+      const currentW = win.getBoundingClientRect().width;
+      if (currentW > 600) {
+        win.style.width = '460px';
+        localStorage.setItem('aiforce_ai_chat_width', '460px');
+      } else {
+        const targetW = `${Math.min(850, window.innerWidth - 32)}px`;
+        win.style.width = targetW;
+        localStorage.setItem('aiforce_ai_chat_width', targetW);
+      }
+    });
+  }
+
+  if (topHandle) {
+    topHandle.addEventListener('mousedown', (e) => startResize(e, 'top'));
+    topHandle.addEventListener('touchstart', (e) => startResize(e, 'top'), { passive: false });
+  }
+
+  if (cornerHandle) {
+    cornerHandle.addEventListener('mousedown', (e) => startResize(e, 'corner'));
+    cornerHandle.addEventListener('touchstart', (e) => startResize(e, 'corner'), { passive: false });
+  }
+}
+
+/**
+ * Bouton d'agrandissement / réduction de la fenêtre de chat
+ */
+function toggleAiChatExpand() {
+  const win = document.getElementById('aiChatbotWindow');
+  const btn = document.getElementById('aiExpandBtn');
+  if (!win) return;
+
+  const isExpanded = win.classList.contains('is-expanded');
+  const expandIcon = btn?.querySelector('.ai-expand-icon');
+  const compressIcon = btn?.querySelector('.ai-compress-icon');
+
+  if (isExpanded) {
+    win.classList.remove('is-expanded');
+    if (expandIcon) expandIcon.style.display = 'block';
+    if (compressIcon) compressIcon.style.display = 'none';
+    if (btn) btn.title = 'Agrandir la fenêtre de discussion';
+    const savedW = localStorage.getItem('aiforce_ai_chat_width') || '460px';
+    const savedH = localStorage.getItem('aiforce_ai_chat_height') || '640px';
+    win.style.width = savedW;
+    win.style.height = savedH;
+  } else {
+    if (win.style.width) localStorage.setItem('aiforce_ai_chat_width', win.style.width);
+    if (win.style.height) localStorage.setItem('aiforce_ai_chat_height', win.style.height);
+
+    win.classList.add('is-expanded');
+    if (expandIcon) expandIcon.style.display = 'none';
+    if (compressIcon) compressIcon.style.display = 'block';
+    if (btn) btn.title = 'Réduire la fenêtre de discussion';
   }
 }
 
@@ -4379,6 +5268,10 @@ async function testAiConnection() {
 
 // Exportation globale pour les gestionnaires d'événements HTML
 window.toggleAiChatbot = toggleAiChatbot;
+window.toggleAiChatExpand = toggleAiChatExpand;
+window.copyAiTableToClipboard = copyAiTableToClipboard;
+window.copyAiTextToClipboard = copyAiTextToClipboard;
+window.initAiChatResizable = initAiChatResizable;
 window.openAiSettingsModal = openAiSettingsModal;
 window.closeAiSettingsModal = closeAiSettingsModal;
 window.toggleApiKeyVisibility = toggleApiKeyVisibility;
@@ -4388,6 +5281,18 @@ window.clearAiChat = clearAiChat;
 window.handleAiPromptClick = handleAiPromptClick;
 window.handleAiChatSubmit = handleAiChatSubmit;
 window.handleAiInputKeydown = handleAiInputKeydown;
+window.initAiChats = initAiChats;
+window.createNewAiChat = createNewAiChat;
+window.switchAiChat = switchAiChat;
+window.startRenameAiChat = startRenameAiChat;
+window.saveRenameAiChat = saveRenameAiChat;
+window.cancelRenameAiChat = cancelRenameAiChat;
+window.handleRenameKeydown = handleRenameKeydown;
+window.deleteAiChat = deleteAiChat;
+window.toggleAiChatsDrawer = toggleAiChatsDrawer;
+window.renderAiChatsDrawer = renderAiChatsDrawer;
+window.renderAiChatsTabs = renderAiChatsTabs;
+window.renderActiveChatMessages = renderActiveChatMessages;
 
 // ==========================================================================
 // INITIALISATION AU CHARGEMENT DE LA PAGE
@@ -4405,12 +5310,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. Initialisation du statut IA et sécurité Qwen
   checkAiServerStatus();
 
+  // 4. Initialisation du système multi-chats & onglets de discussion
+  initAiChats();
+
+  // 5. Initialisation du redimensionnement interactif du chat
+  initAiChatResizable();
+
   // Écoute de la touche Échap pour fermer les modales et le chat
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeDrawer();
       closeDiagnosticModal();
       closeAiSettingsModal();
+      toggleAiChatsDrawer(false);
       if (state.ai.isOpen) {
         toggleAiChatbot(false);
       }
