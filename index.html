@@ -14,6 +14,11 @@
   <!-- Chart.js 4.4.2 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 
+  <!-- Client-Side Document Parsers: SheetJS (Excel), PDF.js (PDF), Mammoth (Word DOCX) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -1835,6 +1840,10 @@
         <button class="ai-icon-btn" onclick="openAiSettingsModal()" title="Paramètres & Clé API Qwen">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
+        <button class="ai-icon-btn" id="aiDocLibraryBtn" onclick="toggleAiDocLibrary()" title="Base Documentaire & Mémoire Entreprise de l'IA" aria-label="Base Documentaire">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span class="ai-doc-count-pip" id="aiDocCountPip" style="display: none;">0</span>
+        </button>
         <button class="ai-icon-btn" id="aiExpandBtn" onclick="toggleAiChatExpand()" title="Agrandir / Réduire la fenêtre de discussion">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ai-expand-icon"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ai-compress-icon" style="display: none;"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
@@ -1890,6 +1899,40 @@
       </div>
     </div>
 
+    <!-- Tiroir de la Base Documentaire de l'Entreprise -->
+    <div class="ai-doc-library-drawer" id="aiDocLibraryDrawer" style="display: none;">
+      <div class="ai-drawer-header">
+        <div class="ai-drawer-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>Base Documentaire d'Entreprise (<span id="aiDocLibraryCount">0</span>)</span>
+        </div>
+        <div class="ai-drawer-actions">
+          <button type="button" class="ai-drawer-new-btn" onclick="triggerAiFileUpload()" title="Téléverser un document dans la mémoire de l'IA">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span>Ajouter</span>
+          </button>
+          <button type="button" class="ai-drawer-close-btn" onclick="toggleAiDocLibrary(false)" title="Fermer la liste">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+      <div class="ai-doc-library-desc">
+        Documents mémorisés par l'IA (contrats, devis, grilles tarifaires, audits). L'IA les croise automatiquement avec vos 88 factures et bons de commande.
+      </div>
+      <div class="ai-doc-library-list" id="aiDocLibraryList">
+        <!-- Liste dynamique des documents mémorisés -->
+      </div>
+    </div>
+
+    <!-- Overlay de Drag & Drop pour le téléversement de documents -->
+    <div class="ai-drop-overlay" id="aiDropOverlay" style="display: none;">
+      <div class="ai-drop-content">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        <strong>Déposez vos documents ici</strong>
+        <span>PDF, Excel (.xlsx, .xls), Word (.docx), CSV, Images</span>
+      </div>
+    </div>
+
     <!-- Quick Prompts Chips -->
     <div class="ai-quick-prompts-tray" id="aiQuickPrompts">
       <button class="ai-prompt-chip" onclick="handleAiPromptClick(this)">📧 Audit complet & envoi par mail</button>
@@ -1921,16 +1964,32 @@
       <span class="ai-typing-text">AI Data Analyst analyse et calcule...</span>
     </div>
 
-    <!-- Chat Input Form -->
+    <!-- Chat Input Form avec Téléversement de Documents -->
     <form class="ai-chat-form" id="aiChatForm" onsubmit="handleAiChatSubmit(event)">
+      <!-- Plateau des documents en attente d'envoi -->
+      <div class="ai-attachments-tray" id="aiAttachmentsTray" style="display: none;"></div>
+
       <div class="ai-input-wrap">
-        <textarea id="aiChatInput" rows="1" placeholder="Posez une question sur vos factures, BC, fournisseurs, audits..." onkeydown="handleAiInputKeydown(event)" autocomplete="off"></textarea>
+        <!-- Input de fichier caché -->
+        <input type="file" id="aiFileInput" multiple style="display: none;" onchange="handleAiFileSelect(event)" accept=".pdf,.xlsx,.xls,.csv,.txt,.docx,.doc,.json,.png,.jpg,.jpeg,.webp">
+        
+        <!-- Bouton Trombone Téléverser -->
+        <button type="button" class="ai-attach-btn" id="aiAttachBtn" onclick="triggerAiFileUpload()" title="Joindre un document ou fichier (PDF, Excel, Word, CSV, Images)..." aria-label="Joindre un fichier">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+        </button>
+
+        <textarea id="aiChatInput" rows="1" placeholder="Posez une question ou joignez un fichier (PDF, Excel, Word...)" onkeydown="handleAiInputKeydown(event)" autocomplete="off"></textarea>
+        
         <button type="submit" class="ai-send-btn" id="aiSendBtn" aria-label="Envoyer le message" title="Envoyer (Entrée)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
         </button>
       </div>
+
       <div class="ai-input-footer">
-        <span class="ai-footer-hint">Entrée pour envoyer • Maj+Entrée saut de ligne</span>
+        <div class="ai-footer-left">
+          <span class="ai-footer-hint">Entrée pour envoyer • Maj+Entrée saut de ligne</span>
+          <span class="ai-file-formats-tag">📎 PDF • Excel • Word • CSV • Images</span>
+        </div>
         <span class="ai-footer-badge">🔒 Clé sécurisée serveur</span>
       </div>
     </form>

@@ -118,7 +118,9 @@ const state = {
     chats: [],
     activeChatId: null,
     editingChatId: null,
-    history: []
+    history: [],
+    pendingAttachments: [],
+    documents: []
   }
 };
 
@@ -3934,6 +3936,523 @@ function renderAiMarkdown(text) {
   return html;
 }
 
+// ==========================================================================
+// AI DATA ANALYST — BASE DOCUMENTAIRE, PARSER UNIVERSEL & MÉMOIRE D'ENTREPRISE
+// ==========================================================================
+
+/**
+ * Informations et badges visuels selon l'extension du fichier
+ */
+function getDocBadgeInfo(doc) {
+  const ext = (doc.ext || (doc.name ? doc.name.split('.').pop() : '')).toLowerCase();
+  if (ext === 'pdf') {
+    return { emoji: '📄', label: 'PDF', badgeClass: 'ai-doc-badge-pdf', color: '#ef4444' };
+  } else if (['xlsx', 'xls'].includes(ext)) {
+    return { emoji: '📊', label: 'Excel', badgeClass: 'ai-doc-badge-excel', color: '#10b981' };
+  } else if (['docx', 'doc'].includes(ext)) {
+    return { emoji: '📝', label: 'Word', badgeClass: 'ai-doc-badge-word', color: '#3b82f6' };
+  } else if (['csv', 'tsv'].includes(ext)) {
+    return { emoji: '📈', label: 'CSV/Table', badgeClass: 'ai-doc-badge-csv', color: '#06b6d4' };
+  } else if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+    return { emoji: '🖼️', label: 'Image', badgeClass: 'ai-doc-badge-img', color: '#a855f7' };
+  } else {
+    return { emoji: '📑', label: ext.toUpperCase() || 'Doc', badgeClass: 'ai-doc-badge-text', color: '#eab308' };
+  }
+}
+
+/**
+ * Formatage lisible de la taille de fichier
+ */
+function formatFileSize(bytes) {
+  if (!bytes || isNaN(bytes)) return '0 Ko';
+  if (bytes < 1024) return bytes + ' octets';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' Mo';
+}
+
+/**
+ * Initialisation de la base documentaire et du drag-and-drop
+ */
+function initAiDocuments() {
+  try {
+    const saved = localStorage.getItem('aiforce_ai_documents');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        state.ai.documents = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Impossible de charger aiforce_ai_documents:', e);
+  }
+
+  updateAiDocBadges();
+  setupAiDragAndDrop();
+
+  // Configuration du worker PDF.js si présent
+  if (window.pdfjsLib && !window.pdfjsLib.GlobalWorkerOptions?.workerSrc) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+}
+
+/**
+ * Sauvegarde de la mémoire documentaire dans localStorage avec tolérance de quota
+ */
+function saveAiDocuments() {
+  try {
+    localStorage.setItem('aiforce_ai_documents', JSON.stringify(state.ai.documents));
+  } catch (e) {
+    console.warn('Quota localStorage atteint pour aiforce_ai_documents, compression des extraits...', e);
+    try {
+      const lightDocs = state.ai.documents.map(d => ({
+        ...d,
+        extractedText: (d.extractedText || '').slice(0, 12000),
+        dataUrl: null
+      }));
+      localStorage.setItem('aiforce_ai_documents', JSON.stringify(lightDocs));
+    } catch (e2) {
+      console.error('Erreur critique de persistance de la mémoire IA:', e2);
+    }
+  }
+  updateAiDocBadges();
+  renderAiDocLibrary();
+}
+
+/**
+ * Met à jour les compteurs et pastilles documentaires
+ */
+function updateAiDocBadges() {
+  const count = (state.ai.documents || []).length;
+  const pip = document.getElementById('aiDocCountPip');
+  const countSpan = document.getElementById('aiDocLibraryCount');
+
+  if (countSpan) countSpan.textContent = count;
+
+  if (pip) {
+    if (count > 0) {
+      pip.textContent = count > 99 ? '99+' : count;
+      pip.style.display = 'flex';
+    } else {
+      pip.style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Gestion du Drag & Drop sur la fenêtre du chatbot
+ */
+function setupAiDragAndDrop() {
+  const win = document.getElementById('aiChatbotWindow');
+  const overlay = document.getElementById('aiDropOverlay');
+  if (!win || !overlay) return;
+
+  let dragCounter = 0;
+
+  win.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    overlay.style.display = 'flex';
+  });
+
+  win.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  win.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      overlay.style.display = 'none';
+      dragCounter = 0;
+    }
+  });
+
+  win.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    overlay.style.display = 'none';
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await handleAiFilesAdded(e.dataTransfer.files);
+    }
+  });
+}
+
+/**
+ * Déclenchement de la sélection de fichier via le bouton trombone
+ */
+function triggerAiFileUpload() {
+  const fileInput = document.getElementById('aiFileInput');
+  if (fileInput) {
+    fileInput.click();
+  }
+}
+
+/**
+ * Événement au choix des fichiers via input[type="file"]
+ */
+async function handleAiFileSelect(event) {
+  const files = event.target.files;
+  if (files && files.length > 0) {
+    await handleAiFilesAdded(files);
+  }
+  event.target.value = '';
+}
+
+/**
+ * Parsing universel asynchrone d'un fichier (PDF, Excel, Word, CSV, Images, Texte)
+ */
+async function parseDocumentFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const docId = 'doc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+  let extractedText = '';
+  let pageCount = null;
+  let sheetNames = null;
+  let dataUrl = null;
+
+  try {
+    // 1. PDF via PDF.js
+    if (ext === 'pdf') {
+      if (window.pdfjsLib) {
+        if (!window.pdfjsLib.GlobalWorkerOptions?.workerSrc) {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        pageCount = pdf.numPages;
+        const maxPages = Math.min(pageCount, 30);
+        const pagesText = [];
+
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageStr = content.items.map(item => item.str).join(' ');
+          pagesText.push(`[Page ${i}/${pageCount}]\n${pageStr.trim()}`);
+        }
+        extractedText = pagesText.join('\n\n');
+        if (pageCount > maxPages) {
+          extractedText += `\n\n[... Note : Document de ${pageCount} pages, seules les ${maxPages} premières pages ont été extraites ...]`;
+        }
+      } else {
+        extractedText = await file.text();
+      }
+    }
+    // 2. Excel (xlsx, xls) via SheetJS
+    else if (['xlsx', 'xls'].includes(ext)) {
+      if (window.XLSX) {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = window.XLSX.read(arrayBuffer, { type: 'array' });
+        sheetNames = workbook.SheetNames || [];
+        const sheetsContent = [];
+
+        sheetNames.forEach(name => {
+          const sheet = workbook.Sheets[name];
+          const csv = window.XLSX.utils.sheet_to_csv(sheet);
+          sheetsContent.push(`=== FEUILLE : "${name}" ===\n${csv.trim()}`);
+        });
+        extractedText = sheetsContent.join('\n\n');
+      } else {
+        extractedText = await file.text();
+      }
+    }
+    // 3. Word (docx) via Mammoth
+    else if (ext === 'docx') {
+      if (window.mammoth) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await window.mammoth.extractRawText({ arrayBuffer });
+        extractedText = result.value || '';
+      } else {
+        extractedText = await file.text();
+      }
+    }
+    // 4. Images (png, jpg, jpeg, webp)
+    else if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+      dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      extractedText = `[Image ${ext.toUpperCase()} : "${file.name}" — Poids: ${formatFileSize(file.size)}]`;
+    }
+    // 5. Texte brut, CSV, TSV, JSON, Markdown, etc.
+    else {
+      extractedText = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+  } catch (err) {
+    console.warn(`Erreur parsing fichier ${file.name}:`, err);
+    extractedText = `[Erreur lors de la lecture du fichier "${file.name}" : ${err.message}]`;
+  }
+
+  const cleanText = (extractedText || '').trim();
+  const snippet = cleanText.length > 350 ? cleanText.slice(0, 350) + '...' : cleanText;
+
+  return {
+    id: docId,
+    name: file.name,
+    size: file.size,
+    type: ext,
+    ext: ext,
+    uploadedAt: Date.now(),
+    pageCount: pageCount,
+    sheetNames: sheetNames,
+    extractedText: cleanText,
+    snippet: snippet,
+    dataUrl: dataUrl
+  };
+}
+
+/**
+ * Traitement d'un lot de fichiers ajoutés
+ */
+async function handleAiFilesAdded(fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  showToast(`Lecture et analyse de ${fileList.length} document(s)...`, 'info');
+
+  for (let i = 0; i < fileList.length; i++) {
+    const file = fileList[i];
+    try {
+      const doc = await parseDocumentFile(file);
+      state.ai.pendingAttachments.push(doc);
+    } catch (e) {
+      console.error('Erreur fichier:', file.name, e);
+      showToast(`Impossible de lire ${file.name}`, 'error');
+    }
+  }
+
+  renderPendingAttachments();
+  showToast(`${fileList.length} document(s) attaché(s) au prompt`, 'success');
+
+  const input = document.getElementById('aiChatInput');
+  if (input) input.focus();
+}
+
+/**
+ * Rendu du plateau des pièces jointes en attente dans le chat
+ */
+function renderPendingAttachments() {
+  const tray = document.getElementById('aiAttachmentsTray');
+  if (!tray) return;
+
+  if (!state.ai.pendingAttachments || state.ai.pendingAttachments.length === 0) {
+    tray.style.display = 'none';
+    tray.innerHTML = '';
+    return;
+  }
+
+  tray.style.display = 'flex';
+  tray.innerHTML = state.ai.pendingAttachments.map(att => {
+    const badge = getDocBadgeInfo(att);
+    let meta = formatFileSize(att.size);
+    if (att.pageCount) meta = `${att.pageCount} p. • ${meta}`;
+    else if (att.sheetNames) meta = `${att.sheetNames.length} f. • ${meta}`;
+
+    return `
+      <div class="ai-attachment-chip" id="chip_${att.id}" title="${escapeHtml(att.name)}">
+        <span class="ai-chip-icon">${badge.emoji}</span>
+        <div class="ai-chip-info">
+          <span class="ai-chip-name">${escapeHtml(att.name)}</span>
+          <span class="ai-chip-meta">${escapeHtml(badge.label)} • ${meta}</span>
+        </div>
+        <button type="button" class="ai-chip-remove" onclick="removePendingAttachment('${att.id}', event)" title="Retirer ce fichier">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Suppression d'une pièce jointe en attente
+ */
+function removePendingAttachment(docId, event) {
+  if (event) event.stopPropagation();
+  state.ai.pendingAttachments = (state.ai.pendingAttachments || []).filter(a => a.id !== docId);
+  renderPendingAttachments();
+}
+
+/**
+ * Rendu HTML des cartes de documents attachés dans les bulles de messages
+ */
+function renderAttachmentsHtml(attachments) {
+  if (!attachments || attachments.length === 0) return '';
+
+  return `
+    <div class="ai-message-attachments">
+      ${attachments.map(att => {
+        const badge = getDocBadgeInfo(att);
+        let meta = formatFileSize(att.size);
+        if (att.pageCount) meta = `${att.pageCount} page(s) • ${meta}`;
+        else if (att.sheetNames) meta = `${att.sheetNames.length} feuille(s) (${att.sheetNames.slice(0, 3).join(', ')}) • ${meta}`;
+
+        const previewSnippet = att.extractedText ? escapeHtml(att.extractedText.slice(0, 1500)) : 'Aucun texte extractible.';
+
+        return `
+          <div class="ai-msg-att-card" id="attCard_${att.id}">
+            <div class="ai-msg-att-main">
+              <div class="ai-msg-att-left">
+                <span class="ai-msg-att-icon">${badge.emoji}</span>
+                <div class="ai-msg-att-details">
+                  <span class="ai-msg-att-title" title="${escapeHtml(att.name)}">${escapeHtml(att.name)}</span>
+                  <span class="ai-msg-att-meta">${escapeHtml(badge.label)} • ${meta}</span>
+                </div>
+              </div>
+              <button type="button" class="ai-msg-att-view-btn" onclick="toggleAttachmentCardPreview('${att.id}')" title="Afficher ou masquer l'extrait analysé">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <span id="attToggleTxt_${att.id}">Voir l'extrait</span>
+              </button>
+            </div>
+            <div class="ai-msg-att-preview-body" id="attPreview_${att.id}" style="display: none;">
+              <pre>${previewSnippet}${att.extractedText && att.extractedText.length > 1500 ? '\n\n[... Extrait partiel affiché. L\'intégralité du contenu a été fournie à l\'IA ...]' : ''}</pre>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+/**
+ * Déplier / replier l'extrait d'un document dans un message
+ */
+function toggleAttachmentCardPreview(id) {
+  const preview = document.getElementById(`attPreview_${id}`);
+  const txt = document.getElementById(`attToggleTxt_${id}`);
+  if (!preview) return;
+
+  if (preview.style.display === 'none') {
+    preview.style.display = 'block';
+    if (txt) txt.textContent = 'Masquer';
+  } else {
+    preview.style.display = 'none';
+    if (txt) txt.textContent = 'Voir l\'extrait';
+  }
+}
+
+/**
+ * Tiroir de la Base Documentaire d'Entreprise
+ */
+function toggleAiDocLibrary(forceState) {
+  const drawer = document.getElementById('aiDocLibraryDrawer');
+  if (!drawer) return;
+
+  // Fermer le tiroir des discussions si ouvert pour éviter la superposition
+  toggleAiChatsDrawer(false);
+
+  const willOpen = forceState !== undefined ? forceState : (drawer.style.display === 'none' || !drawer.style.display);
+  drawer.style.display = willOpen ? 'flex' : 'none';
+
+  if (willOpen) {
+    renderAiDocLibrary();
+  }
+}
+
+/**
+ * Rendu visuel de la liste des documents de la Base Documentaire
+ */
+function renderAiDocLibrary() {
+  const list = document.getElementById('aiDocLibraryList');
+  if (!list) return;
+
+  updateAiDocBadges();
+
+  const docs = state.ai.documents || [];
+  if (docs.length === 0) {
+    list.innerHTML = `
+      <div class="ai-drawer-empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="opacity: 0.6; margin-bottom: 0.5rem;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <p style="font-weight: 700; margin-bottom: 0.2rem;">Aucun document en mémoire</p>
+        <p style="font-size: 0.72rem; color: var(--text-tertiary, #64748b); max-width: 280px; text-align: center; margin-bottom: 0.8rem;">
+          Téléversez vos contrats, devis, grilles tarifaires ou audits. L'IA les mémorisera pour toute l'entreprise et les confrontera à vos 88 factures.
+        </p>
+        <button type="button" class="btn-primary" onclick="triggerAiFileUpload()" style="font-size: 0.75rem; padding: 0.35rem 0.8rem; border-radius: 6px;">
+          📎 Téléverser un premier document
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = docs.map(doc => {
+    const badge = getDocBadgeInfo(doc);
+    const dateStr = doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Récemment';
+    let meta = formatFileSize(doc.size);
+    if (doc.pageCount) meta = `${doc.pageCount} p. • ${meta}`;
+    else if (doc.sheetNames) meta = `${doc.sheetNames.length} feuilles • ${meta}`;
+
+    const snippetText = escapeHtml(doc.snippet || (doc.extractedText || '').slice(0, 180) || 'Aucun texte extrait');
+
+    return `
+      <div class="ai-doc-card" id="docCard_${doc.id}">
+        <div class="ai-doc-card-top">
+          <div class="ai-msg-att-left">
+            <span class="ai-msg-att-icon">${badge.emoji}</span>
+            <div class="ai-msg-att-details">
+              <span class="ai-msg-att-title" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</span>
+              <span class="ai-msg-att-meta">${escapeHtml(badge.label)} • ${meta} • Ajouté le ${dateStr}</span>
+            </div>
+          </div>
+          <div class="ai-doc-card-actions">
+            <button type="button" class="ai-msg-att-view-btn" onclick="insertAiDocQuestion('${doc.id}')" title="Poser une question à l'IA sur ce document">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span>Analyser</span>
+            </button>
+            <button type="button" class="ai-drawer-action-btn btn-delete" onclick="deleteAiDoc('${doc.id}', event)" title="Supprimer de la mémoire">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ai-doc-card-preview" title="Extrait du document">
+          ${snippetText}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Supprimer un document de la mémoire d'entreprise
+ */
+function deleteAiDoc(docId, event) {
+  if (event) event.stopPropagation();
+  const doc = (state.ai.documents || []).find(d => d.id === docId);
+  const name = doc ? doc.name : 'ce document';
+
+  if (!confirm(`Supprimer "${name}" de la mémoire de l'IA ? L'assistant n'aura plus accès à ses informations pour ses futures analyses.`)) {
+    return;
+  }
+
+  state.ai.documents = (state.ai.documents || []).filter(d => d.id !== docId);
+  saveAiDocuments();
+  showToast(`Document "${name}" supprimé de la mémoire`, 'info');
+}
+
+/**
+ * Insère une question prédéfinie sur un document dans l'input du chat
+ */
+function insertAiDocQuestion(docId) {
+  const doc = (state.ai.documents || []).find(d => d.id === docId);
+  if (!doc) return;
+
+  toggleAiDocLibrary(false);
+  const input = document.getElementById('aiChatInput');
+  if (input) {
+    input.value = `Analyse en détail le document "${doc.name}" mémorisé dans notre base et croise-le avec nos 88 factures et bons de commande fournisseurs.`;
+    input.focus();
+  }
+}
+
 /**
  * 4. Gestion de la fenêtre de chat & des raccourcis
  */
@@ -3961,6 +4480,8 @@ function toggleAiChatbot(forceState) {
     win.classList.remove('is-open');
     win.setAttribute('aria-hidden', 'true');
     if (trigger) trigger.style.transform = '';
+    toggleAiDocLibrary(false);
+    toggleAiChatsDrawer(false);
   }
 }
 
@@ -4252,6 +4773,8 @@ function toggleAiChatsDrawer(forceState) {
   drawer.style.display = willOpen ? 'flex' : 'none';
 
   if (willOpen) {
+    const docDrawer = document.getElementById('aiDocLibraryDrawer');
+    if (docDrawer) docDrawer.style.display = 'none';
     renderAiChatsDrawer();
   }
 }
@@ -4414,7 +4937,7 @@ function renderActiveChatMessages() {
     `;
   } else {
     activeChat.messages.forEach(msg => {
-      appendAiMessage(msg.role, msg.content, msg.timestamp);
+      appendAiMessage(msg.role, msg.content, msg.timestamp, msg.attachments);
     });
   }
 
@@ -4457,7 +4980,7 @@ function handleAiInputKeydown(e) {
   }
 }
 
-function appendAiMessage(role, rawContent, timestamp) {
+function appendAiMessage(role, rawContent, timestamp, attachments) {
   const container = document.getElementById('aiChatMessages');
   if (!container) return null;
 
@@ -4540,7 +5063,13 @@ function appendAiMessage(role, rawContent, timestamp) {
 
     contentDiv.appendChild(footerDiv);
   } else {
-    contentDiv.innerHTML = `<p>${escapeHtml(rawContent).replace(/\n/g, '<br>')}</p>`;
+    // Message de l'utilisateur avec éventuelles pièces jointes
+    let userHtml = '';
+    if (attachments && attachments.length > 0) {
+      userHtml += renderAttachmentsHtml(attachments);
+    }
+    userHtml += `<div class="ai-msg-user-text">${escapeHtml(rawContent).replace(/\n/g, '<br>')}</div>`;
+    contentDiv.innerHTML = userHtml;
   }
 
   msgDiv.appendChild(avatar);
@@ -4561,22 +5090,59 @@ async function handleAiChatSubmit(e) {
   const input = document.getElementById('aiChatInput');
   if (!input) return;
   const userText = input.value.trim();
-  if (!userText) return;
+  const pendingAtts = [...(state.ai.pendingAttachments || [])];
+
+  // Si l'utilisateur n'a ni tapé de texte ni joint de fichier, on ignore
+  if (!userText && pendingAtts.length === 0) return;
+
+  // Texte effectif si l'utilisateur envoie seulement un fichier sans prompt
+  const effectiveText = userText || (pendingAtts.length === 1 ? `Analyse le document ci-joint : ${pendingAtts[0].name}` : `Analyse les ${pendingAtts.length} documents ci-joints.`);
 
   const activeChat = getActiveAiChat();
   if (!activeChat) return;
   const currentChatId = activeChat.id;
 
-  // Affichage du message utilisateur dans l'interface
-  appendAiMessage('user', userText);
+  // Affichage du message utilisateur dans l'interface avec ses pièces jointes
+  appendAiMessage('user', effectiveText, Date.now(), pendingAtts);
   input.value = '';
   input.style.height = 'auto';
 
+  // Réinitialisation du plateau des pièces jointes
+  state.ai.pendingAttachments = [];
+  renderPendingAttachments();
+
   // Enregistrement immédiat dans la discussion courante
-  activeChat.messages.push({ role: 'user', content: userText, timestamp: Date.now() });
+  activeChat.messages.push({
+    role: 'user',
+    content: effectiveText,
+    attachments: pendingAtts,
+    timestamp: Date.now()
+  });
   activeChat.updatedAt = Date.now();
   saveAiChatsToStorage();
   renderAiChatsTabs();
+
+  // Mémorisation dans la Base Documentaire de l'entreprise (apprentissage continu)
+  if (pendingAtts.length > 0) {
+    pendingAtts.forEach(att => {
+      const exists = (state.ai.documents || []).some(d => d.name === att.name && d.size === att.size);
+      if (!exists) {
+        state.ai.documents.unshift({
+          id: att.id,
+          name: att.name,
+          size: att.size,
+          type: att.type,
+          ext: att.ext,
+          uploadedAt: att.uploadedAt || Date.now(),
+          pageCount: att.pageCount || null,
+          sheetNames: att.sheetNames || null,
+          extractedText: att.extractedText,
+          snippet: att.snippet || (att.extractedText || '').slice(0, 350)
+        });
+      }
+    });
+    saveAiDocuments();
+  }
 
   // Préparation du statut thinking
   state.ai.isThinking = true;
@@ -4596,14 +5162,47 @@ async function handleAiChatSubmit(e) {
   // Construction du Contexte et du Prompt Système avec Garde-Fou Strict
   const enterpriseContext = buildEnterpriseAiContext();
 
+  // Construction de la section documentaire pour l'IA
+  let documentsContext = '';
+
+  if (pendingAtts.length > 0) {
+    documentsContext += `\n\n=== DOCUMENTS ATTACHÉS PAR L'UTILISATEUR DANS CE MESSAGE ===\n`;
+    documentsContext += `L'utilisateur a téléversé le(s) document(s) suivant(s) pour cette demande. Tu DOIS les lire attentivement, comprendre leur contenu et répondre en suivant ses instructions :\n\n`;
+    pendingAtts.forEach((att, idx) => {
+      documentsContext += `--- DOCUMENT JOINT #${idx + 1} : "${att.name}" (${att.ext.toUpperCase()}, Poids: ${formatFileSize(att.size)}${att.pageCount ? ', ' + att.pageCount + ' page(s)' : ''}${att.sheetNames ? ', Feuilles: ' + att.sheetNames.join(', ') : ''}) ---\n`;
+      documentsContext += `${att.extractedText || '[Fichier binaire ou image sans texte brut]'}\n`;
+      documentsContext += `--- FIN DU DOCUMENT "${att.name}" ---\n\n`;
+    });
+  }
+
+  // Ajout de la mémoire continue de l'entreprise (documents déjà mémorisés dans l'entreprise)
+  if (state.ai.documents && state.ai.documents.length > 0) {
+    const memoryDocs = state.ai.documents.filter(d => !pendingAtts.some(p => p.id === d.id));
+    if (memoryDocs.length > 0) {
+      documentsContext += `\n=== BASE DE CONNAISSANCES & MÉMOIRE CONTINUE DE L'ENTREPRISE (${state.ai.documents.length} document(s) capitalisé(s)) ===\n`;
+      documentsContext += `Voici les documents officiels déjà appris et mémorisés au fur et à mesure par l'entreprise (contrats, devis validés, grilles tarifaires, audits) que tu peux croiser avec les données financières :\n`;
+      memoryDocs.slice(0, 8).forEach((d, idx) => {
+        documentsContext += `• [Doc #${idx + 1}] "${d.name}" (${d.ext.toUpperCase()}, ajouté le ${new Date(d.uploadedAt).toLocaleDateString('fr-FR')}) : ${d.snippet || (d.extractedText || '').slice(0, 300)}...\n`;
+      });
+      documentsContext += `\n`;
+    }
+  }
+
   const systemPrompt = `Tu es l'AI Data Analyst officiel et exclusif de la plateforme d'Approvisionnements et Comptabilité Fournisseurs de l'entreprise (AIFORCE AGENCY V2).
 Tu t'exprimes avec l'autorité d'un expert financier, une grande clarté exécutive et une précision mathématique rigoureuse.
 
 === RÈGLE CARDINALE DE PÉRIMÈTRE & REFUS STRICT ===
-Ton champ d'intervention est STRICTEMENT et EXCLUSIVEMENT limité aux données de l'entreprise fournies dans ce contexte (achats, factures, bons de commande, comptabilité fournisseurs, approbations, centres de coûts, règlements, audits et indicateurs de performance SLA).
+Ton champ d'intervention est STRICTEMENT et EXCLUSIVEMENT limité aux données de l'entreprise fournies dans ce contexte (achats, factures, bons de commande, comptabilité fournisseurs, approbations, centres de coûts, règlements, audits et indicateurs de performance SLA) ainsi qu'aux documents joints par les collaborateurs (contrats, devis, grilles tarifaires, rapports).
 Si l'utilisateur te pose une question portant sur un sujet externe (par exemple de la politique, des personnalités comme Donald Trump, de l'actualité mondiale, du divertissement, de la programmation générale, de la culture générale, etc.), tu DOIS STRICTEMENT REFUSER de répondre en formulant poliment mais fermement la réponse suivante :
 "Je ne réponds pas à de telles questions. En tant qu'AI Data Analyst de la plateforme d'Approvisionnements & Comptabilité Fournisseurs, mon rôle est strictement limité à l'analyse des données financières, des bons de commande, des factures et des audits de l'entreprise. Comment puis-je vous aider sur vos données d'achats ?"
 Ne déroge jamais à cette consigne, sous aucun prétexte.
+
+=== CONSIGNES POUR L'ANALYSE DE DOCUMENTS ET L'APPRENTISSAGE CONTINU ===
+Lorsque l'utilisateur te téléverse des documents ou des fichiers (PDF, Excel, Word, CSV, images) :
+1. LECTURE & COMPRÉHENSION : Lis attentivement l'intégralité du contenu extrait de ces fichiers (clauses contractuelles, prix unitaires, conditions de livraison, remises, échéances de règlement).
+2. RESPECT DES INSTRUCTIONS : Applique fidèlement les instructions données par l'utilisateur en fonction de ces fichiers (synthèse, calcul de variance, extraction de données, audit de conformité).
+3. RAPPROCHEMENT AVEC LES 88 FACTURES ERP : Confronte systématiquement les pièces fournies (ex: devis ou contrat d'un prestataire) avec les factures et bons de commande réels enregistrés ci-dessous. Détecte immédiatement toute anomalie de facturation, écart de prix unitaire ou surfacturation par rapport aux accords contractuels.
+4. CAPITALISATION CONTINUE : Apprends et retiens ces informations au fur et à mesure pour bâtir une mémoire d'entreprise toujours plus intelligente et précise.
 
 === CAPACITÉ D'EXPÉDITION D'ANALYSES ET DE RAPPORTS PAR EMAIL ===
 Tu disposes d'un outil officiel et automatisé d'expédition de courriels d'audit relié à la passerelle Gmail SMTP de l'entreprise (expéditeur certifié : calebwils900@gmail.com).
@@ -4621,7 +5220,8 @@ Le système frontal prendra immédiatement en charge l'expédition automatique d
 4. Langue : Réponds directement dans la langue employée par l'utilisateur (français ou anglais selon la question posée), avec un style exécutif, direct, précis et professionnel.
 
 === DONNÉES EN TEMPS RÉEL DU SYSTÈME D'INFORMATION ===
-${enterpriseContext}`;
+${enterpriseContext}
+${documentsContext}`;
 
   // Messages pour l'API
   const apiMessages = [
@@ -4634,7 +5234,12 @@ ${enterpriseContext}`;
     apiMessages.push({ role: h.role, content: h.content });
   });
 
-  apiMessages.push({ role: 'user', content: userText });
+  // Message utilisateur avec indication des pièces jointes si présentes
+  let promptUserContent = effectiveText;
+  if (pendingAtts.length > 0) {
+    promptUserContent += `\n\n[Fichiers joints fournis : ${pendingAtts.map(a => `${a.name} (${a.ext.toUpperCase()})`).join(', ')}]`;
+  }
+  apiMessages.push({ role: 'user', content: promptUserContent });
 
   try {
     const headers = {
@@ -5288,6 +5893,16 @@ window.renderAiChatsDrawer = renderAiChatsDrawer;
 window.renderAiChatsTabs = renderAiChatsTabs;
 window.renderActiveChatMessages = renderActiveChatMessages;
 
+// Exportations pour la Base Documentaire & Pièces Jointes
+window.triggerAiFileUpload = triggerAiFileUpload;
+window.handleAiFileSelect = handleAiFileSelect;
+window.removePendingAttachment = removePendingAttachment;
+window.toggleAttachmentCardPreview = toggleAttachmentCardPreview;
+window.toggleAiDocLibrary = toggleAiDocLibrary;
+window.renderAiDocLibrary = renderAiDocLibrary;
+window.deleteAiDoc = deleteAiDoc;
+window.insertAiDocQuestion = insertAiDocQuestion;
+
 // ==========================================================================
 // INITIALISATION AU CHARGEMENT DE LA PAGE
 // ==========================================================================
@@ -5307,7 +5922,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Initialisation du système multi-chats & onglets de discussion
   initAiChats();
 
-  // 5. Initialisation du redimensionnement interactif du chat
+  // 5. Initialisation de la base documentaire d'entreprise & drag-and-drop
+  initAiDocuments();
+
+  // 6. Initialisation du redimensionnement interactif du chat
   initAiChatResizable();
 
   // Écoute de la touche Échap pour fermer les modales et le chat
@@ -5317,6 +5935,7 @@ document.addEventListener('DOMContentLoaded', () => {
       closeDiagnosticModal();
       closeAiSettingsModal();
       toggleAiChatsDrawer(false);
+      toggleAiDocLibrary(false);
       if (state.ai.isOpen) {
         toggleAiChatbot(false);
       }
