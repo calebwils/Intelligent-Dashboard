@@ -4303,12 +4303,6 @@ function renderAiChatsTabs() {
   const activeChat = getActiveAiChat();
   if (!activeChat) return;
 
-  // Mise à jour du sous-titre de l'en-tête pour indiquer la discussion courante
-  const subtitle = document.getElementById('aiChatSubtitle');
-  if (subtitle) {
-    subtitle.textContent = `${activeChat.title} • Intelligence Approvisionnements & DAF`;
-  }
-
   // Compteur d'onglets
   const countBadge = document.getElementById('aiChatsCountBadge');
   if (countBadge) {
