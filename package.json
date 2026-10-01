@@ -11,6 +11,6 @@
     "undici": "^6.21.0"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }
